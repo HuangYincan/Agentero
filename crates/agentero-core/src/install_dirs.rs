@@ -13,6 +13,12 @@ pub const HOME_BIN_DIRS: &[&str] = &[
     ".npm-global/bin",
     ".cargo/bin",
     ".volta/bin",
+    // OpenCode official installer (`curl -fsSL https://opencode.ai/install | bash`)
+    // drops a single binary here; GUI launches miss it because the dir is only
+    // added to the shell PATH by the installer.
+    ".opencode/bin",
+    // xAI Grok CLI official installer (https://x.ai/cli/install.sh).
+    ".grok/bin",
     // Kimi Code official installer (single binary, writes PATH into the shell rc).
     ".kimi-code/bin",
     // fnm default-alias bins (data dir varies by platform; session
