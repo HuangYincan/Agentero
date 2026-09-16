@@ -184,7 +184,7 @@ export async function setLibraryPaperTags(
 /** Quiet catalog reload coalesced across external-change bursts (CLI, sync). */
 let libraryRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
-async function runLibraryRefresh(): Promise<void> {
+export async function runLibraryRefresh(): Promise<void> {
 	libraryRefreshTimer = null;
 	const vaultPath = getVaultPath();
 	if (!vaultPath || !isTauri()) {

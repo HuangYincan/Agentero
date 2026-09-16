@@ -47,7 +47,7 @@ import { joinVaultPath, readVaultFile } from "@/lib/vault";
 import { isRemoteVaultHandle } from "@/lib/vault/remote/remote-vault";
 import { getVaultPath, refreshTree, vaultStore } from "@/lib/vault/store";
 import { toVaultRelative } from "@/lib/wiki";
-import { openPaper } from "@/lib/workspace/actions";
+import { openPaper, syncUpdatedPaperTabs } from "@/lib/workspace/actions";
 import {
 	refreshTabNotes,
 	setTabs,
@@ -428,24 +428,7 @@ export async function paperMetaChange(
 				return key === path ? { ...p, ...updated } : p;
 			}),
 		);
-		setTabs((prev) =>
-			prev.map((tab) => {
-				if (!tab.paperMeta) return tab;
-				const key = tab.paperMeta.path
-					.replace(/\\/g, "/")
-					.replace(/^\/+|\/+$/g, "");
-				const samePath = key === path;
-				const sameOpenPaper = !key && tab.paperMeta.id === paperMeta.id;
-				if (!samePath && !sameOpenPaper) return tab;
-				return {
-					...tab,
-					paperMeta: {
-						...tab.paperMeta,
-						...updated,
-					},
-				};
-			}),
-		);
+		syncUpdatedPaperTabs(vaultPath, path, updated, paperMeta.id);
 		return { ...paperMeta, ...updated };
 	} catch (e) {
 		notifyError(errorText(e));
@@ -530,7 +513,8 @@ export async function refreshPaperMetadata(
 		const patch = resolvedMetaPatch(meta);
 
 		if (Object.keys(patch).length > 0) {
-			await updatePaperMeta(vaultPath, paper.path, patch);
+			const updated = await updatePaperMeta(vaultPath, paper.path, patch);
+			syncUpdatedPaperTabs(vaultPath, paper.path, updated, paper.id);
 			scheduleLibraryRefresh();
 			notifySuccess(i18n.t("sidebar:papersLibrary.refreshMetadataDone"));
 		} else {

@@ -13,6 +13,7 @@ import { lifecycle } from "@/lib/lifecycle";
 import {
 	clearLibraryVaultState,
 	refreshLibrary,
+	runLibraryRefresh,
 	scheduleLibraryRefresh,
 } from "@/lib/paper/library-store";
 import { clearAnnotationsVaultState } from "@/lib/pdf/annotations-store";
@@ -39,6 +40,7 @@ import {
 	rebuildWikiAndNotify,
 	trackInternalRenamePaths,
 } from "@/lib/wiki/store";
+import { syncRenamedPaperTabs } from "@/lib/workspace/actions";
 
 /** Batch imports emit one `paper:imported` per paper; merge the rebuilds. */
 let importWikiTimer: ReturnType<typeof setTimeout> | null = null;
@@ -125,6 +127,9 @@ export function registerLifecycleHandlers(): () => void {
 				remapMovedWorkspacePaths(fromAbs, toAbs, oldPath, newPath);
 				bumpWikiIndexRevision();
 				scheduleImportWikiRebuild(vaultId);
+				void syncRenamedPaperTabs(vaultId, toAbs);
+				void runLibraryRefresh();
+				void refreshTree(vaultId, { quiet: true });
 			}
 			scheduleTreeRefresh([fromAbs, toAbs]);
 			scheduleLibraryRefresh();

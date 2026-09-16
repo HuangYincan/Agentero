@@ -82,6 +82,10 @@ export function remapTabsUnderPath(
 		const notesPath = tab.notesPath
 			? remapPathUnder(tab.notesPath, from, to)
 			: null;
+		const pdfUrl = tab.pdfUrl ? remapPathUnder(tab.pdfUrl, from, to) : null;
+		const imageUrl = tab.imageUrl
+			? remapPathUnder(tab.imageUrl, from, to)
+			: null;
 		const paperMeta = tab.paperMeta;
 		let nextPaperMeta = paperMeta;
 		if (paperMeta) {
@@ -93,6 +97,8 @@ export function remapTabsUnderPath(
 		if (
 			path === tab.path &&
 			notesPath === tab.notesPath &&
+			pdfUrl === tab.pdfUrl &&
+			imageUrl === tab.imageUrl &&
 			nextPaperMeta === paperMeta
 		) {
 			return tab;
@@ -102,6 +108,8 @@ export function remapTabsUnderPath(
 			id: remapTabIdForPath(tab.id, tab.path, path),
 			path,
 			notesPath,
+			pdfUrl,
+			imageUrl,
 			paperMeta: nextPaperMeta,
 		};
 	});

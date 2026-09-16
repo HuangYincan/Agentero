@@ -27,6 +27,8 @@ import {
 	isUnderPaperAttachments,
 	isUnderPapers,
 	localFileToArrayBuffer,
+	notesPathForPaper,
+	type PaperMetadata,
 	paperDirFromPath,
 	type RemotePaperItem,
 	remoteArxivPath,
@@ -285,6 +287,14 @@ export function openTab(
 			existing.kind === "paper" &&
 			(existing.mode === "pdf" || existing.mode === "html")
 		) {
+			const wantDefaultNotes =
+				!opts?.skipDefaultNotes &&
+				!opts?.placement &&
+				Boolean(existing.notesPath) &&
+				(opts?.forceNotes || loadSettings().autoOpenPaperNotes);
+			if (wantDefaultNotes && !tabHasNotesSplit(getTabs(), existing)) {
+				openTabNotes(existing.id);
+			}
 			activatePaperWithNotes(existing);
 		} else {
 			setActiveTabId(id);
@@ -1935,4 +1945,126 @@ export function selectFileNode(node: FileNode): void {
 	}
 	if (node.kind !== "file") return;
 	openPath(node.path);
+}
+
+/**
+ * Synchronize open workspace tabs when a paper has been recognized and renamed.
+ * Reloads the paper's metadata, canonical PDF path, and updated NOTES.md content,
+ * bumping editor reload keys and updating dockview panel titles.
+ */
+export async function syncRenamedPaperTabs(
+	vaultId: string,
+	toAbs: string,
+): Promise<void> {
+	const vaultState = vaultStore.getState();
+	let res: Awaited<ReturnType<typeof loadTabResources>>;
+	try {
+		res = await loadTabResources(
+			toAbs,
+			vaultId,
+			vaultState.tree,
+			vaultState.paperFolders,
+		);
+	} catch {
+		return;
+	}
+
+	const paperTabId = tabIdForPath(toAbs);
+	const notesPath = res.notesPath ?? notesPathForPaper(toAbs);
+	const notesTabId = tabIdForPath(notesPath);
+	const currentTabs = getTabs();
+
+	for (const tab of currentTabs) {
+		if (tab.id === paperTabId || tab.path === toAbs) {
+			updateTab(tab.id, {
+				title: res.title || tab.title,
+				paperMeta: res.paperMeta ?? tab.paperMeta,
+				pdfUrl: res.pdfUrl ?? tab.pdfUrl,
+				pdfBytes: res.pdfBytes ?? tab.pdfBytes,
+				notesPath,
+				notesSeed: res.notesSeed,
+				notesKey: tab.notesKey + 1,
+			});
+		} else if (
+			tab.id === notesTabId ||
+			(tab.notesPath &&
+				normalizeTabPath(tab.notesPath) === normalizeTabPath(notesPath)) ||
+			(tab.path && normalizeTabPath(tab.path) === normalizeTabPath(notesPath))
+		) {
+			updateTab(tab.id, {
+				notesSeed: res.notesSeed,
+				markdownSeed: res.notesSeed,
+				notesKey: tab.notesKey + 1,
+				seedKey: tab.seedKey + 1,
+				paperMeta: res.paperMeta ?? tab.paperMeta,
+				notesPath,
+				path: notesPath,
+			});
+		}
+	}
+
+	if (notesPath) {
+		void applyDiskChange(notesPath);
+	}
+}
+
+/**
+ * Synchronize open workspace tabs when a paper's metadata has been edited or refreshed.
+ * Updates the tab's `title` (for paper tabs) and `paperMeta`, and notifies open NOTES.md
+ * of possible title sync on disk.
+ */
+export function syncUpdatedPaperTabs(
+	vaultPath: string,
+	relPath: string,
+	updated: Partial<PaperMetadata>,
+	fallbackId?: string,
+): void {
+	const normRel = relPath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+	const paperAbs = joinVaultPath(vaultPath, normRel);
+	const notesAbs = joinVaultPath(vaultPath, `${normRel}/NOTES.md`);
+	const normNotesRel = `${normRel}/notes.md`.toLowerCase();
+
+	setTabs((prev) =>
+		prev.map((tab) => {
+			const tabRel = toVaultRelative(vaultPath, tab.path)
+				.replace(/\\/g, "/")
+				.replace(/^\/+|\/+$/g, "");
+			const metaRel = tab.paperMeta?.path
+				?.replace(/\\/g, "/")
+				.replace(/^\/+|\/+$/g, "");
+
+			const isDirectPaperTab =
+				tabRel === normRel || metaRel === normRel || tab.path === paperAbs;
+
+			const isSamePaperId = Boolean(
+				fallbackId && tab.paperMeta?.id && tab.paperMeta.id === fallbackId,
+			);
+
+			const isNotesTab =
+				Boolean(tab.notesPath && tab.notesPath === notesAbs) ||
+				Boolean(tabRel && tabRel.toLowerCase() === normNotesRel);
+
+			if (!isDirectPaperTab && !isSamePaperId && !isNotesTab) {
+				return tab;
+			}
+
+			const nextMeta: PaperMetadata = {
+				...(tab.paperMeta ?? ({} as PaperMetadata)),
+				...updated,
+			};
+
+			const nextTitle =
+				tab.kind === "paper"
+					? nextMeta.title?.trim() || basenameOf(tab.path)
+					: tab.title;
+
+			return {
+				...tab,
+				title: nextTitle,
+				paperMeta: nextMeta,
+			};
+		}),
+	);
+
+	void applyDiskChange(notesAbs);
 }
