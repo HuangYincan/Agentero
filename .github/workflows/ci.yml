@@ -50,6 +50,9 @@ jobs:
           set -euo pipefail
           case "${{ matrix.task }}" in
             quality)
+              # Stage the bundled ACP adapter trees so a broken staging script
+              # (or a hostile upstream release) fails the PR, not the release build.
+              pnpm adapters:stage
               pnpm exec biome ci .
               pnpm typecheck
               pnpm deps:check
