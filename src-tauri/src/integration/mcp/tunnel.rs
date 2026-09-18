@@ -31,6 +31,9 @@ const READY_POLL_EVERY: Duration = Duration::from_millis(1500);
 const READY_BUDGET: Duration = Duration::from_secs(30);
 const KEEPALIVE_POLL_EVERY: Duration = Duration::from_secs(10);
 const PROBE_TIMEOUT: Duration = Duration::from_secs(8);
+/// `watch_exit` polls the child instead of holding its mutex across `wait`,
+/// so `stop` can take the lock and `start_kill` from a sync context.
+const EXIT_POLL_EVERY: Duration = Duration::from_millis(100);
 const LOG_TAIL_CHARS: usize = 800;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
@@ -69,6 +72,9 @@ struct Inner {
     /// (e.g. an MCP port change) can retire instead of resurrecting the old one.
     generation: u64,
     app: Option<AppHandle>,
+    /// Startup orphan sweep, so `start` can wait for it before spawning a
+    /// fresh child the sweep must not kill.
+    sweep: Option<tauri::async_runtime::JoinHandle<()>>,
 }
 
 fn idle_status() -> McpTunnelStatus {
@@ -207,6 +213,7 @@ impl McpTunnelController {
                 child: None,
                 generation: 0,
                 app: None,
+                sweep: None,
             }),
         }
     }
@@ -243,6 +250,19 @@ impl McpTunnelController {
         }
     }
 
+    /// Sweep leftover tunnel-client children once at app startup. `start`
+    /// waits for this before spawning, so the sweep can never kill the fresh
+    /// child it races with.
+    pub fn schedule_startup_sweep(self: &Arc<Self>) {
+        let ctrl = Arc::clone(self);
+        let join = tauri::async_runtime::spawn(async move {
+            ctrl.sweep_orphans().await;
+        });
+        if let Ok(mut g) = self.inner.lock() {
+            g.sweep = Some(join);
+        }
+    }
+
     pub async fn start(
         self: &Arc<Self>,
         mcp_url: String,
@@ -265,6 +285,13 @@ impl McpTunnelController {
             drop(g);
             self.emit_status();
             return status;
+        }
+
+        // A startup sweep may still be running; wait it out so it cannot
+        // mistake the child we are about to spawn for an orphan.
+        let sweep = self.inner.lock().ok().and_then(|mut g| g.sweep.take());
+        if let Some(sweep) = sweep {
+            let _ = sweep.await;
         }
 
         let Some(binary) = resolve_command(TUNNEL_CLIENT_BIN) else {
@@ -374,17 +401,17 @@ impl McpTunnelController {
     /// Stop the child. Sync by design: it also runs from the `RunEvent::Exit`
     /// arm, where there is no runtime left to await on.
     pub fn stop(&self) {
-        let child = match self.inner.lock() {
+        let (child, pid) = match self.inner.lock() {
             Ok(mut g) => {
                 g.generation += 1;
                 let child = g.child.take();
+                let pid = g.pid.take();
                 g.running = false;
-                g.pid = None;
                 if g.phase != McpTunnelPhase::BinaryMissing {
                     g.phase = McpTunnelPhase::Stopped;
                 }
                 g.last_error = None;
-                child
+                (child, pid)
             }
             Err(_) => return,
         };
@@ -392,10 +419,23 @@ impl McpTunnelController {
             self.emit_status();
             return;
         };
-        // `start_kill` (not `kill`) so no runtime is needed; the exit is reaped
-        // by `watch_exit`, and `kill_on_drop` is the backstop.
-        if let Ok(mut guard) = child.try_lock() {
-            let _ = guard.start_kill();
+        // `watch_exit` holds the child mutex only between `try_wait` polls, so
+        // a short retry normally wins the lock for `start_kill`. If it never
+        // does, kill by pid: the exit hook runs on the main thread where no
+        // async runtime remains, and `kill_on_drop` is lost when the host
+        // process goes away without dropping the global runtime.
+        let mut killed = false;
+        for _ in 0..16 {
+            if let Ok(mut guard) = child.try_lock() {
+                killed = guard.start_kill().is_ok();
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        if !killed {
+            if let Some(pid) = pid {
+                kill_by_pid(pid);
+            }
         }
         self.emit_status();
     }
@@ -433,9 +473,19 @@ impl McpTunnelController {
                 .flatten()
         });
         let Some(child) = child else { return };
-        let status = {
-            let mut guard = child.lock().await;
-            guard.wait().await
+        // Poll with short lock holds. Holding the mutex across `wait` would
+        // lock `stop` out forever, leaving the child alive after the host
+        // exits — every stop used to leak exactly this way.
+        let status = loop {
+            let polled = {
+                let mut guard = child.lock().await;
+                guard.try_wait()
+            };
+            match polled {
+                Ok(Some(status)) => break Some(status),
+                Ok(None) => tokio::time::sleep(EXIT_POLL_EVERY).await,
+                Err(_) => break None,
+            }
         };
         let stale = self
             .inner
@@ -445,7 +495,7 @@ impl McpTunnelController {
         if stale {
             return;
         }
-        let code = status.map(|s| s.code().unwrap_or(-1)).ok();
+        let code = status.and_then(|s| s.code());
         log::info!(target: "agentero::mcp::tunnel", "tunnel exited code={code:?}");
         let unexpected = code.is_none();
         if let Ok(mut g) = self.inner.lock() {
@@ -526,6 +576,47 @@ impl McpTunnelController {
             }
         }
     }
+
+    /// Kill `tunnel-client` leftovers from previous runs. The host can die
+    /// without its exit hook (crash, `taskkill /F`, power loss), and each such
+    /// exit used to leak a child pointing at our private profile dir.
+    /// Single-instance makes every such match an orphan, so killing all of
+    /// them is safe. Windows only for now; adopt elsewhere if the leak shows
+    /// up on other platforms.
+    #[cfg(windows)]
+    async fn sweep_orphans(&self) {
+        let marker = mcp_tunnel_dir().join("profiles").display().to_string();
+        let Some(listing) = list_tunnel_processes().await else {
+            return;
+        };
+        // ConvertTo-Json emits an object for a single hit, an array for many,
+        // and nothing for none.
+        let entries = match serde_json::from_str::<Value>(&listing) {
+            Ok(Value::Array(items)) => items,
+            Ok(item @ Value::Object(_)) => vec![item],
+            _ => return,
+        };
+        let victims = entries
+            .into_iter()
+            .filter_map(|item| {
+                let matches = item
+                    .get("CommandLine")
+                    .and_then(Value::as_str)
+                    .is_some_and(|line| line.contains(&marker));
+                item.get("ProcessId")
+                    .and_then(Value::as_u64)
+                    .filter(|_| matches)
+                    .map(|pid| pid as u32)
+            })
+            .collect::<Vec<_>>();
+        for pid in victims {
+            log::info!(target: "agentero::mcp::tunnel", "killing orphaned tunnel-client pid={pid}");
+            kill_by_pid(pid);
+        }
+    }
+
+    #[cfg(not(windows))]
+    async fn sweep_orphans(&self) {}
 }
 
 /// Run `tunnel-client health --json` and read the connectivity verdict.
@@ -574,6 +665,54 @@ fn poll_error(value: &Value) -> Option<String> {
         .and_then(|p| p.get("error"))
         .and_then(Value::as_str)
         .map(str::to_string)
+}
+
+/// One PowerShell round-trip listing every tunnel-client with its command
+/// line as JSON. std has no process enumeration, and the doctor already
+/// leans on PowerShell for the same GUI-host constraints.
+#[cfg(windows)]
+async fn list_tunnel_processes() -> Option<String> {
+    const LIST_SCRIPT: &str = "Get-CimInstance Win32_Process -Filter \"Name='tunnel-client.exe'\" \
+         | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress";
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let mut cmd = Command::new("powershell");
+    cmd.args(["-NoProfile", "-NonInteractive", "-Command", LIST_SCRIPT])
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .creation_flags(CREATE_NO_WINDOW);
+    let out = tokio::time::timeout(Duration::from_secs(15), cmd.output())
+        .await
+        .ok()?
+        .ok()?;
+    String::from_utf8(out.stdout).ok()
+}
+
+/// OS-level kill for when the child handle cannot be locked in time: the
+/// synchronous exit path has no async runtime to await the mutex with. A
+/// dead or recycled pid just makes the command fail, which is fine here.
+fn kill_by_pid(pid: u32) {
+    #[cfg(windows)]
+    let mut cmd = {
+        let mut cmd = std::process::Command::new("taskkill");
+        cmd.args(["/F", "/PID", &pid.to_string()]);
+        cmd
+    };
+    #[cfg(not(windows))]
+    let mut cmd = {
+        let mut cmd = std::process::Command::new("kill");
+        cmd.arg("-9").arg(pid.to_string());
+        cmd
+    };
+    cmd.stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    let _ = cmd.output();
 }
 
 #[cfg(test)]
