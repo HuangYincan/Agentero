@@ -350,6 +350,7 @@ pub fn run() {
         {
             let tunnel = app.state::<Arc<McpTunnelController>>();
             tunnel.set_app_handle(app.handle().clone());
+            tunnel.schedule_startup_sweep();
         }
         log::info!(
             target: "agentero::op",
