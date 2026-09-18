@@ -22,6 +22,7 @@ function entry(overrides: Partial<CatalogEntry>): CatalogEntry {
 		installHint: "",
 		binaryAvailable: true,
 		acpCommandAvailable: true,
+		acpBundled: false,
 		acpStatus: "ready",
 		registeredId: "catalog-opencode",
 		isDefault: false,
@@ -110,6 +111,27 @@ describe("buildDefaultAgentChoices", () => {
 		const choices = buildDefaultAgentChoices(state);
 
 		expect(defaultAgentChoiceValue(state, choices)).toBe("catalog:codex-acp");
+	});
+
+	it("offers a bundled-tier row as a usable default agent", () => {
+		// No adapter on PATH; the bundled tier makes the ACP layer available
+		// (host CLI still installed), so the row must be selectable.
+		const choices = buildDefaultAgentChoices(
+			scan({
+				entries: [
+					entry({
+						templateId: "claude-acp",
+						name: "Claude",
+						acpBundled: true,
+						acpBundledVersion: "0.79.0",
+					}),
+				],
+			}),
+		);
+
+		expect(choices.map((choice) => choice.value)).toEqual([
+			"catalog:claude-acp",
+		]);
 	});
 });
 

@@ -76,6 +76,9 @@ pub async fn scan_remote_agents(
             binary_available,
             resolved_path: detect_path.or(acp_path),
             acp_command_available,
+            // The bundled tier is local-only; remote hosts resolve their own.
+            acp_bundled: false,
+            acp_bundled_version: None,
             acp_status,
             registered_id: None,
             is_default: false,

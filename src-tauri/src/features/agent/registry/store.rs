@@ -4,6 +4,7 @@ use crate::features::agent::models::{
     AgentTemplate, CatalogAcpStatus, CatalogEntry, CatalogScanResponse, ProbeResult,
     UpsertAgentRequest,
 };
+use crate::features::agent::registry::bundled;
 use crate::features::agent::registry::discovery::{probe_command, resolve_command};
 use crate::features::agent::registry::lifecycle;
 use crate::features::agent::registry::templates::{
@@ -333,16 +334,7 @@ impl AgentRegistry {
             if id.is_some_and(|want| want != agent.id) {
                 continue;
             }
-            match probe_command(&agent.command) {
-                Ok(_) => {
-                    agent.available = true;
-                    agent.last_error = None;
-                }
-                Err(e) => {
-                    agent.available = false;
-                    agent.last_error = Some(e);
-                }
-            }
+            probe_or_bundled(agent);
         }
         persist(&self.path, &guard)?;
         Ok(if let Some(want) = id {
@@ -409,7 +401,15 @@ impl AgentRegistry {
                     .unwrap_or(info.command.as_str());
                 let detect_path = resolve_command(detect);
                 let binary_available = detect_path.is_some();
-                let acp_command_available = resolve_command(&info.command).is_some();
+                let path_acp_available = resolve_command(&info.command).is_some();
+                // Bundled adapter tier: counts as an available ACP entrypoint
+                // only when nothing is PATH-installed (PATH always wins) and
+                // it can actually spawn (Node resolvable, version sufficient).
+                let bundled = bundled::bundled_adapter(&info.id);
+                let bundled_ok = !path_acp_available
+                    && bundled.is_some()
+                    && bundled::bundled_spawnable(&info.id);
+                let acp_command_available = path_acp_available || bundled_ok;
 
                 let registered = state.agents.iter().find(|a| {
                     a.template.as_str() == info.id
@@ -449,13 +449,12 @@ impl AgentRegistry {
                     } else if acp_command_available {
                         (CatalogAcpStatus::NotProbed, None, None, None)
                     } else if binary_available {
-                        // Host CLI present (e.g. `claude`) but ACP entrypoint missing.
-                        (
-                            CatalogAcpStatus::Missing,
-                            None,
-                            Some(format!("ACP command `{}` not found", info.command)),
-                            None,
-                        )
+                        // Host CLI present (e.g. `claude`) but ACP entrypoint
+                        // missing. When a bundled adapter exists but cannot
+                        // spawn (Node missing/old), say so instead.
+                        let error = bundled::node_blocker_message(&info.id)
+                            .unwrap_or_else(|| format!("ACP command `{}` not found", info.command));
+                        (CatalogAcpStatus::Missing, None, Some(error), None)
                     } else {
                         (
                             CatalogAcpStatus::Missing,
@@ -513,6 +512,8 @@ impl AgentRegistry {
                     binary_available,
                     resolved_path: detect_path.map(|p| p.display().to_string()),
                     acp_command_available,
+                    acp_bundled: bundled.is_some(),
+                    acp_bundled_version: bundled.map(|b| b.version),
                     acp_status,
                     registered_id,
                     is_default,
@@ -966,12 +967,24 @@ pub fn merge_codex_config_user_agent(
 
 fn refresh_availability(state: &mut AgentRegistryState) {
     for agent in &mut state.agents {
-        match probe_command(&agent.command) {
-            Ok(_) => {
+        probe_or_bundled(agent);
+    }
+}
+
+/// Mark an agent available when its command probes OK, or when the bundled
+/// adapter tier can spawn it instead (the launch path in `acp::client` falls
+/// back to `node <bundled entry>` when the adapter is not PATH-installed).
+fn probe_or_bundled(agent: &mut crate::features::agent::models::AgentDescriptor) {
+    match probe_command(&agent.command) {
+        Ok(_) => {
+            agent.available = true;
+            agent.last_error = None;
+        }
+        Err(e) => {
+            if bundled::bundled_spawnable(agent.template.as_str()) {
                 agent.available = true;
                 agent.last_error = None;
-            }
-            Err(e) => {
+            } else {
                 agent.available = false;
                 agent.last_error = Some(e);
             }

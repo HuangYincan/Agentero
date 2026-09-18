@@ -174,6 +174,18 @@ function AgentCatalogEntryRow({
 							</StatusBadge>
 						)}
 						{/* Layer 2: ACP entrypoint / probe */}
+						{entry.acpBundled ? (
+							<StatusBadge
+								// Provenance, not status: the bundled tier exists in app
+								// resources and only serves when PATH has no adapter.
+								tone="muted"
+								title={t("agent.badges.acpBundledTitle", {
+									version: entry.acpBundledVersion ?? "—",
+								})}
+							>
+								{t("agent.badges.acpBundled")}
+							</StatusBadge>
+						) : null}
 						{!entry.acpCommandAvailable ? (
 							<StatusBadge
 								tone={entry.binaryAvailable ? "warn" : "muted"}

@@ -53,3 +53,6 @@ src-tauri/binaries/*
 !src-tauri/binaries/.gitkeep
 # Staged by scripts/prepare-pdfium.mjs on every dev/release build
 src-tauri/pdfium/
+
+# Staged by scripts/prepare-adapters.mjs on every dev/release build
+src-tauri/adapters/

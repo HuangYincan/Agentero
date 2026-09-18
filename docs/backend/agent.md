@@ -79,6 +79,35 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   `## Context` / `## Skills` / `## Extensions` 清单）当作普通 agent message 推送。Host
   在本轮首个 message chunk 上识别该横幅并丢弃，不写入内容缓冲、不发 `agent:stream`，
   避免它出现在回答之前。
+- **内置 ACP 适配器（bundled 兜底层）**：`@agentclientprotocol/claude-agent-acp` 与
+  `@agentclientprotocol/codex-acp` 的纯 JS 依赖树（平台二进制裁掉，~39MB 未压缩）作为应用
+  资源随包分发，离线开箱即用。Host CLI（`claude` / `codex`）**永不内置**，仍由用户 PATH
+  或 lifecycle 安装。
+  - Staging：`scripts/prepare-adapters.mjs`（版本 pin 在脚本顶部常量；`pnpm adapters:stage`，
+    已挂入 `beforeDevCommand` / `beforeBuildCommand`），临时目录系统 npm
+    `--omit=optional --omit=dev --ignore-scripts` 安装到共享单树
+    `src-tauri/adapters/node_modules/` + `manifest.json`（id/package/version/entry/nodeMajor）；
+    护栏：无 symlink / 原生二进制、单文件 ≤5MB、总量 ≤80MB（`AGENTERO_ADAPTER_MAX_MB` 可调）。
+    该目录进 `.gitignore`，pin 不经 pnpm-lock（对应用是惰性数据）。
+  - 运行时（`registry/bundled.rs`）：`init` 在 app setup 时定位资源根（打包
+    `Resources/adapters`；dev 回退源码树），`adapter_at` 读 manifest。解析顺序全局唯一：
+    **PATH/lifecycle 安装的适配器永远优先**，`resolve_command` 命中即走原路径，miss 才回落
+    内置层。
+  - Spawn（`acp/client.rs plan_local_launch`）：内置层为 `node <abs>/dist/index.js
+    [descriptor args…]`，node 从合并后的 agent 环境（含 login-shell PATH）解析；Unix 的
+    `cd <vault> && exec` 包装（#570）自动覆盖 node 命令。裁剪后的适配器通过注入 env 找到
+    host CLI——claude 适配器 `CLAUDE_CODE_EXECUTABLE`、codex 适配器 `CODEX_PATH`——均
+    `or_insert`，用户在注册项 env 里显式配置的值永远优先。
+  - Node 门槛：claude-agent-acp 需 Node ≥22（manifest `nodeMajor`）；node 缺失或版本不足
+    时该层静默关闭（`bundled_spawnable` = false），catalog 的 `last_probe_error` 显示
+    `node_blocker_message` 提示，安装按钮回归 npm 路径。
+  - Lifecycle 跳过（`registry/lifecycle.rs`）：`bundled_tier_active`（PATH 无适配器且内置层
+    可 spawn）时 install/update 只装/升级 host，不再 npm 安装适配器；PATH 装上适配器后自动
+    恢复双装语义。uninstall 不受影响（npm 卸载只作用于 PATH 安装）。
+  - Catalog：`acpCommandAvailable = PATH 命中 || bundled_spawnable`；新字段 `acpBundled` /
+    `acpBundledVersion`（Settings 显示「内置」徽标）。远程（SSH）无内置层，行为不变。
+  - **macOS 打包陷阱**：`tauri.macos.conf.json` 的 `bundle.resources` 会整体覆盖主 conf，
+    必须同步包含 `adapters/**/*`，否则 macOS 包静默丢掉内置层。
 - 设置页会将 ACP 探测中的认证错误（如 `invalid_grant` / `failed to authenticate` /
   `authentication required` / `not logged in`）
   显示为「未登录」，其他握手或进程错误仍显示为「ACP 失败」。
@@ -173,7 +202,7 @@ cursor 不再推进（`next == prev`）时视为走完，避免死循环。
 | `agent_respond_permission` | 回答权限请求 |
 | `agent_respond_elicitation` | 回答 form elicitation（Codex `request_user_input`） |
 | `agent_respond_ask_user` | 回答 Grok `_x.ai/ask_user_question` |
-| `agent_run_tool_lifecycle` | 静默安装/升级/卸载 catalog CLI（及 Claude/Codex ACP 适配器）；本机 lifecycle 串行执行，设置页在对应 Agent 行内展示安装 / 扫描 / 探测进度（#250），Windows 使用唯一临时 `.bat` 并按 UTF-8/GBK 解码错误输出；安装失败会将 npm 缓存目录 EPERM 转成可操作的缓存迁移提示；受管安装探测到系统 npm 缓存不可写时自动注入独立缓存目录（`npm_config_cache`），可写的缓存不动；Windows 探测 `.exe` 时校验 PE 头，避免把文本 shim 当作 16 位程序执行；`uninstall` 做 best-effort npm 卸载 + 受管目录删除（不改 shell rc），成功后联动删除 catalog 注册项；见 [api.md](api.md) 与 [#225](https://github.com/poco-ai/Agentero/issues/225) |
+| `agent_run_tool_lifecycle` | 静默安装/升级/卸载 catalog CLI（及 Claude/Codex ACP 适配器）；内置适配器兜底层活跃（PATH 无适配器且可 spawn）时 install/update 只刷新 host、跳过适配器 npm 安装（见上方「内置 ACP 适配器」）；本机 lifecycle 串行执行，设置页在对应 Agent 行内展示安装 / 扫描 / 探测进度（#250），Windows 使用唯一临时 `.bat` 并按 UTF-8/GBK 解码错误输出；安装失败会将 npm 缓存目录 EPERM 转成可操作的缓存迁移提示；受管安装探测到系统 npm 缓存不可写时自动注入独立缓存目录（`npm_config_cache`），可写的缓存不动；Windows 探测 `.exe` 时校验 PE 头，避免把文本 shim 当作 16 位程序执行；`uninstall` 做 best-effort npm 卸载 + 受管目录删除（不改 shell rc），成功后联动删除 catalog 注册项；见 [api.md](api.md) 与 [#225](https://github.com/poco-ai/Agentero/issues/225) |
 | `agent_check_catalog_updates` | PATH scan + 版本对比：本地 `detect --version` vs npm latest；写入 `installedVersion` / `latestVersion` / `updateAvailable`。设置页「升级」仅在 `updateAvailable === true` 时显示；hermes 等无稳定 npm 源或探测失败时不显示。不塞进同步 `agent_scan_catalog`（避免 Doctor / 切换器打网络） |
 | `agent_tool_lifecycle_supported` / `agent_tool_install_commands` / `agent_tool_uninstall_info` | 是否支持静默安装；平台手动安装文案；卸载清理项清单（确认对话框展示） |
 

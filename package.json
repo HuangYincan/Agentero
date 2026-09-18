@@ -21,6 +21,7 @@
 		"cli:bundle": "node scripts/prepare-bundled-cli.mjs",
 		"cli:bundle:release": "node scripts/prepare-bundled-cli.mjs --release",
 		"pdfium:stage": "node scripts/prepare-pdfium.mjs",
+		"adapters:stage": "node scripts/prepare-adapters.mjs",
 		"lint": "pnpm run lint:ts && pnpm run lint:rs",
 		"lint:ts": "biome check .",
 		"lint:rs": "cargo clippy --workspace --all-targets -- -D warnings",

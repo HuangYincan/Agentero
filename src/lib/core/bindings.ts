@@ -1801,6 +1801,13 @@ export type CatalogEntry_Deserialize = {
 	resolvedPath?: string | null,
 	/**  ACP entrypoint command found — ACP layer (may equal host for native ACP agents). */
 	acpCommandAvailable: boolean,
+	/**
+	 *  Bundled ACP adapter tier present in app resources (offline fallback;
+	 *  a PATH-installed adapter still wins over it).
+	 */
+	acpBundled?: boolean,
+	/**  Version of the bundled adapter (from the staging manifest), when staged. */
+	acpBundledVersion?: string | null,
 	acpStatus: CatalogAcpStatus,
 	registeredId?: string | null,
 	isDefault: boolean,
@@ -1840,6 +1847,13 @@ export type CatalogEntry_Serialize = {
 	resolvedPath?: string | null,
 	/**  ACP entrypoint command found — ACP layer (may equal host for native ACP agents). */
 	acpCommandAvailable: boolean,
+	/**
+	 *  Bundled ACP adapter tier present in app resources (offline fallback;
+	 *  a PATH-installed adapter still wins over it).
+	 */
+	acpBundled: boolean,
+	/**  Version of the bundled adapter (from the staging manifest), when staged. */
+	acpBundledVersion?: string | null,
 	acpStatus: CatalogAcpStatus,
 	registeredId?: string | null,
 	isDefault: boolean,

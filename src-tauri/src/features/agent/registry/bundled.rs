@@ -1,0 +1,367 @@
+//! Bundled ACP adapter tier — an offline fallback for the Claude/Codex
+//! adapters, staged by `scripts/prepare-adapters.mjs` into `src-tauri/adapters/`
+//! (JS-only trees, platform binaries stripped) and shipped as app resources.
+//!
+//! Resolution order everywhere: a PATH/lifecycle-installed adapter always
+//! wins; the bundled tier is consulted only when `resolve_command` misses the
+//! adapter command. Host CLIs (`claude`/`codex`) are never bundled — the
+//! stripped adapters find them via injected env (`CLAUDE_CODE_EXECUTABLE` /
+//! `CODEX_PATH`), with user-configured env still taking precedence.
+//!
+//! Layout under the adapters root (packaged: `Contents/Resources/adapters`,
+//! dev: `src-tauri/adapters`):
+//! `manifest.json` + one shared `node_modules/` tree whose entry paths the
+//! manifest records relative to the root.
+
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+
+use serde::Deserialize;
+use tauri::Manager;
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BundledAdapterInfo {
+    #[allow(dead_code)] // kept for manifest completeness / future diagnostics
+    package: String,
+    version: String,
+    entry: String,
+    #[serde(default)]
+    node_major: Option<u32>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BundledManifest {
+    adapters: HashMap<String, BundledAdapterInfo>,
+}
+
+/// A usable bundled adapter: absolute entry script + pinned metadata.
+#[derive(Debug, Clone)]
+pub struct BundledAdapter {
+    /// Absolute path to the adapter's `dist/index.js` (spawn as
+    /// `node <entry_js> [descriptor args…]`).
+    pub entry_js: PathBuf,
+    pub version: String,
+    pub node_major: Option<u32>,
+}
+
+static ADAPTERS_ROOT: OnceLock<Option<PathBuf>> = OnceLock::new();
+
+/// Record the packaged adapters root at app setup. Dev runs (no staged
+/// resources next to the binary) fall back to the source tree walk in
+/// [`adapters_root`], so a missing call or directory simply disables the tier.
+pub fn init<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    if let Ok(res) = app.path().resource_dir() {
+        let root = res.join("adapters");
+        if root.join("manifest.json").is_file() {
+            let _ = ADAPTERS_ROOT.set(Some(root));
+            return;
+        }
+    }
+    let _ = ADAPTERS_ROOT.set(discover_dev_root());
+}
+
+/// Walk exe/cwd ancestors for `src-tauri/adapters` (dev checkout; mirrors the
+/// dev tier of `install::resolve_local_cli`). Cheap: only runs when the
+/// packaged root was absent.
+fn discover_dev_root() -> Option<PathBuf> {
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            candidates.extend(
+                dir.ancestors()
+                    .take(8)
+                    .map(|a| a.join("src-tauri/adapters")),
+            );
+        }
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        candidates.extend(
+            cwd.ancestors()
+                .take(8)
+                .map(|a| a.join("src-tauri/adapters")),
+        );
+    }
+    candidates
+        .into_iter()
+        .find(|root| root.join("manifest.json").is_file())
+}
+
+/// Cached adapters root (packaged → dev → `None` = tier disabled).
+///
+/// Unit tests never activate the global tier: a developer-local
+/// `src-tauri/adapters` staging would otherwise make catalog assertions
+/// machine-dependent (CI never stages). Integration coverage runs through the
+/// dev app instead; pure logic is tested against explicit fixtures via
+/// [`adapter_at`].
+pub fn adapters_root() -> Option<&'static Path> {
+    ADAPTERS_ROOT
+        .get_or_init(|| {
+            #[cfg(test)]
+            {
+                None
+            }
+            #[cfg(not(test))]
+            {
+                discover_dev_root()
+            }
+        })
+        .as_deref()
+}
+
+/// Resolve a bundled adapter from an explicit root. Pure so tests can point it
+/// at a fixture; unknown template ids and missing entry files yield `None`.
+pub fn adapter_at(root: &Path, template_id: &str) -> Option<BundledAdapter> {
+    let manifest: BundledManifest =
+        serde_json::from_str(&std::fs::read_to_string(root.join("manifest.json")).ok()?).ok()?;
+    let info = manifest.adapters.get(template_id)?;
+    let entry_js = root.join(&info.entry);
+    if !entry_js.is_file() {
+        return None;
+    }
+    Some(BundledAdapter {
+        entry_js,
+        version: info.version.clone(),
+        node_major: info.node_major,
+    })
+}
+
+/// Bundled adapter for a template id, or `None` when the tier is absent.
+pub fn bundled_adapter(template_id: &str) -> Option<BundledAdapter> {
+    adapter_at(adapters_root()?, template_id)
+}
+
+fn node_major_of(node: &Path) -> Option<u32> {
+    let mut command = std::process::Command::new(node);
+    command.arg("--version");
+    // GUI-subsystem binary: a stray console window on every probe would look
+    // broken (telemetry/device.rs precedent).
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    let output = command.output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    // "v22.23.2" → 22
+    text.strip_prefix('v')?.split('.').next()?.parse().ok()
+}
+
+/// True when the bundled tier can actually spawn this template: adapter
+/// staged, Node resolvable on PATH, and Node new enough for the adapter.
+pub fn bundled_spawnable(template_id: &str) -> bool {
+    let Some(adapter) = bundled_adapter(template_id) else {
+        return false;
+    };
+    let Some(node) = super::resolve_command("node") else {
+        return false;
+    };
+    node_meets(adapter.node_major, &node)
+}
+
+fn node_meets(required: Option<u32>, node: &Path) -> bool {
+    match required {
+        None => true,
+        Some(min) => node_major_of(node).is_some_and(|major| major >= min),
+    }
+}
+
+/// Spawn plan for the bundled tier: prefer a Node visible to the merged agent
+/// environment (login-shell PATH), fall back to the process PATH probe.
+/// Returns `None` unless the plan is executable (adapter + Node both resolve
+/// and the Node version satisfies the adapter's requirement).
+pub fn bundled_spawn(
+    template_id: &str,
+    child_env: &HashMap<String, String>,
+) -> Option<(PathBuf, BundledAdapter)> {
+    let adapter = bundled_adapter(template_id)?;
+    let node = crate::features::agent::acp::client::resolve_command_in_agent_env("node", child_env)
+        .or_else(|| super::resolve_command("node"))?;
+    if !node_meets(adapter.node_major, &node) {
+        return None;
+    }
+    Some((node, adapter))
+}
+
+/// Env pointing a bundled adapter at the user's host CLI. Only the two known
+/// templates map to an env key; resolution runs against the merged agent
+/// environment so login-shell PATHs are honored. Empty when the host is not
+/// found — the caller only injects when it is about to use the bundled tier,
+/// and user-configured env always wins (`or_insert` at the call site).
+pub fn host_env_injection(
+    template_id: &str,
+    child_env: &HashMap<String, String>,
+) -> Vec<(String, String)> {
+    let resolve = |command: &str| {
+        crate::features::agent::acp::client::resolve_command_in_agent_env(command, child_env)
+            .map(|p| p.display().to_string())
+    };
+    match template_id {
+        // claude-agent-acp: CLAUDE_CODE_EXECUTABLE (defaults to the SDK's
+        // stripped-away embedded binary, so it must be pointed at the host).
+        "claude-acp" => resolve("claude")
+            .map(|p| vec![("CLAUDE_CODE_EXECUTABLE".to_string(), p)])
+            .unwrap_or_default(),
+        // codex-acp: CODEX_PATH (defaults to bare `codex` on PATH).
+        "codex-acp" => resolve("codex")
+            .map(|p| vec![("CODEX_PATH".to_string(), p)])
+            .unwrap_or_default(),
+        _ => Vec::new(),
+    }
+}
+
+/// Scan-status hint when the tier exists but cannot run (Node missing/old).
+pub fn node_blocker_message(template_id: &str) -> Option<String> {
+    let adapter = bundled_adapter(template_id)?;
+    if super::resolve_command("node").is_none() {
+        return Some(format!(
+            "bundled ACP adapter {} present but Node.js is required to run it",
+            adapter.version
+        ));
+    }
+    match adapter.node_major {
+        Some(min)
+            if super::resolve_command("node").is_some_and(|node| !node_meets(Some(min), &node)) =>
+        {
+            Some(format!(
+                "bundled ACP adapter {} requires Node.js {min} or newer",
+                adapter.version
+            ))
+        }
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn write_manifest(dir: &Path, adapters: serde_json::Value) {
+        let manifest = serde_json::json!({ "adapters": adapters });
+        std::fs::write(
+            dir.join("manifest.json"),
+            serde_json::to_string(&manifest).unwrap(),
+        )
+        .unwrap();
+    }
+
+    fn fixture() -> (tempfile::TempDir, PathBuf) {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().to_path_buf();
+        let entry = root.join("node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js");
+        std::fs::create_dir_all(entry.parent().unwrap()).unwrap();
+        std::fs::write(&entry, "#!/usr/bin/env node\n").unwrap();
+        write_manifest(
+            &root,
+            serde_json::json!({
+                "claude-acp": {
+                    "package": "@agentclientprotocol/claude-agent-acp",
+                    "version": "0.79.0",
+                    "entry": "node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js",
+                    "nodeMajor": 22
+                },
+                "codex-acp": {
+                    "package": "@agentclientprotocol/codex-acp",
+                    "version": "1.12.0",
+                    "entry": "node_modules/@agentclientprotocol/codex-acp/dist/index.js",
+                    "nodeMajor": null
+                }
+            }),
+        );
+        (tmp, root)
+    }
+
+    #[test]
+    fn adapter_at_resolves_entry_and_metadata() {
+        let (_tmp, root) = fixture();
+        let adapter = adapter_at(&root, "claude-acp").expect("claude-acp staged");
+        assert!(adapter
+            .entry_js
+            .ends_with("node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js"));
+        assert_eq!(adapter.version, "0.79.0");
+        assert_eq!(adapter.node_major, Some(22));
+    }
+
+    #[test]
+    fn adapter_at_rejects_missing_entry_and_unknown_id() {
+        let (_tmp, root) = fixture();
+        // codex-acp is in the manifest but its entry file was never created.
+        assert!(adapter_at(&root, "codex-acp").is_none());
+        assert!(adapter_at(&root, "dsh").is_none());
+        assert!(adapter_at(&root, "custom").is_none());
+    }
+
+    #[test]
+    fn adapter_at_requires_manifest() {
+        let tmp = tempfile::tempdir().unwrap();
+        assert!(adapter_at(tmp.path(), "claude-acp").is_none());
+    }
+
+    #[test]
+    fn host_env_injection_maps_templates_to_host_env() {
+        // A fake host bin dir keeps this hermetic: no reliance on the test
+        // machine having claude/codex installed.
+        let tmp = tempfile::tempdir().unwrap();
+        let bin = tmp.path().join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        for name in ["claude", "codex"] {
+            let file = bin.join(name);
+            std::fs::write(&file, "#!/bin/sh\n").unwrap();
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o755)).unwrap();
+            }
+            // Windows resolution probes PATHEXT-style suffixes (.cmd first).
+            #[cfg(windows)]
+            std::fs::write(bin.join(format!("{name}.cmd")), "@echo off\r\n").unwrap();
+        }
+        let mut env = HashMap::new();
+        env.insert(
+            "PATH".to_string(),
+            std::env::join_paths(std::iter::once(bin.clone()))
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+        );
+
+        let injected = host_env_injection("claude-acp", &env);
+        assert_eq!(injected.len(), 1);
+        assert_eq!(injected[0].0, "CLAUDE_CODE_EXECUTABLE");
+        assert!(injected[0].1.contains("claude"));
+
+        let injected = host_env_injection("codex-acp", &env);
+        assert_eq!(injected.len(), 1);
+        assert_eq!(injected[0].0, "CODEX_PATH");
+        assert!(injected[0].1.contains("codex"));
+
+        // No host on PATH → no injection; unknown templates never inject.
+        let mut empty = HashMap::new();
+        empty.insert(
+            "PATH".to_string(),
+            std::env::join_paths(std::iter::once(std::path::PathBuf::from(
+                "/nonexistent-agentero-test",
+            )))
+            .unwrap()
+            .to_string_lossy()
+            .to_string(),
+        );
+        assert!(host_env_injection("claude-acp", &empty).is_empty());
+        assert!(host_env_injection("codex-acp", &empty).is_empty());
+        assert!(host_env_injection("dsh", &empty).is_empty());
+    }
+
+    #[test]
+    fn node_major_gate_is_pure_comparison() {
+        // node_meets with None requirement is trivially true; the version
+        // parse itself is exercised through node_major_of on the real PATH
+        // only where a node exists, so keep this test hermetic.
+        assert!(node_meets(None, Path::new("/nonexistent/node")));
+    }
+}

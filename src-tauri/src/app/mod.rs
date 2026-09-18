@@ -179,6 +179,9 @@ pub fn run() {
     }
 
     builder = builder.setup(|app| {
+        // Bundled ACP adapter tier (offline fallback): record the packaged
+        // adapters root before any catalog scan / spawn path can consult it.
+        crate::features::agent::registry::bundled::init(app.handle());
         // JobCenter runner registry: business domains own their executors and
         // register them here at assembly time (P2 runner-registry refactor).
         // JobCenter itself lives in features/jobs, alongside the domains it

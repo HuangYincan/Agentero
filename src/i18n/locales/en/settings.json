@@ -308,7 +308,9 @@
 			"default": "default",
 			"agentInstalled": "Agent installed",
 			"agentMissing": "No agent",
-			"acpMissing": "No ACP"
+			"acpMissing": "No ACP",
+			"acpBundled": "Built-in",
+			"acpBundledTitle": "Bundled ACP adapter {{version}} — used only when no adapter is on PATH (a PATH install always wins; the bundled one moves with app releases)."
 		},
 		"permission": {
 			"label": "Permission mode",

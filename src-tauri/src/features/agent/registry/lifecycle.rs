@@ -420,7 +420,13 @@ pub fn run_template_lifecycle(
         .as_deref()
         .unwrap_or(info.command.as_str());
     let host_present = resolve_command(detect).is_some();
-    let acp_present = resolve_command(&info.command).is_some();
+    let acp_path_present = resolve_command(&info.command).is_some();
+    // Bundled adapter tier keeps the ACP layer ready without an npm install;
+    // it only counts when nothing is PATH-installed (PATH always wins) and it
+    // can actually spawn. While active, install/update refresh the host only —
+    // the bundled adapter moves with app releases.
+    let bundled_tier_active = !acp_path_present && super::bundled::bundled_spawnable(template_id);
+    let acp_present = acp_path_present || bundled_tier_active;
     // Same binary for host and ACP (opencode, openclaw, hermes, grok via npx).
     let needs_separate_adapter = info
         .detect_command
@@ -432,11 +438,14 @@ pub fn run_template_lifecycle(
             if needs_separate_adapter {
                 if host_present && !acp_present {
                     adapter_install_command(template_id)?
-                } else if !host_present {
+                } else if !host_present && !bundled_tier_active {
                     chain_host_and_adapter(
                         host_install_command(template_id)?,
                         adapter_install_command(template_id)?,
                     )
+                } else if !host_present {
+                    // Bundled adapter already covers the ACP layer.
+                    host_install_command(template_id)?
                 } else {
                     // Host + adapter both present — treat install as update.
                     update_command(
@@ -444,6 +453,7 @@ pub fn run_template_lifecycle(
                         host_present,
                         acp_present,
                         needs_separate_adapter,
+                        bundled_tier_active,
                     )?
                 }
             } else if host_present {
@@ -457,6 +467,7 @@ pub fn run_template_lifecycle(
             host_present,
             acp_present,
             needs_separate_adapter,
+            bundled_tier_active,
         )?,
         // Diverted to `run_template_uninstall` above.
         ToolLifecycleAction::Uninstall => {
@@ -495,6 +506,7 @@ fn update_command(
     host_present: bool,
     acp_present: bool,
     needs_separate_adapter: bool,
+    bundled_tier_active: bool,
 ) -> Result<String, String> {
     if needs_separate_adapter {
         let mut parts = Vec::new();
@@ -504,7 +516,10 @@ fn update_command(
             parts.push(host_install_command(template_id)?);
         }
         let host_update_has_adapter = host_present && host_update_includes_adapter(template_id);
-        if !host_update_has_adapter && (!acp_present || host_present) {
+        // While the bundled tier is the active adapter, update refreshes the
+        // host only; a PATH-installed adapter (bundled_tier_active=false)
+        // restores the chained refresh below.
+        if !bundled_tier_active && !host_update_has_adapter && (!acp_present || host_present) {
             // Always refresh adapter on update when host path exists; install if missing.
             parts.push(adapter_install_command(template_id)?);
         }
@@ -1204,6 +1219,28 @@ mod tests {
     }
 
     #[test]
+    fn bundled_tier_update_refreshes_host_only() {
+        // Bundled tier active (no PATH adapter): update refreshes the host and
+        // must not npm-install an adapter over the bundled one.
+        let update =
+            update_command("claude-acp", true, true, true, true).expect("claude-acp update");
+        assert!(
+            !update.contains("claude-agent-acp"),
+            "bundled tier active: adapter refresh not expected: {update}"
+        );
+        assert!(
+            update.contains("claude update") || update.contains("@anthropic-ai/claude-code"),
+            "host update expected: {update}"
+        );
+        // PATH adapter installed (bundled inactive): the adapter refresh returns.
+        let chained = update_command("claude-acp", true, true, true, false).unwrap();
+        assert!(
+            chained.contains("claude-agent-acp"),
+            "PATH tier active: adapter refresh expected: {chained}"
+        );
+    }
+
+    #[test]
     fn adapter_commands_for_acp_templates() {
         assert!(adapter_install_command("claude-acp")
             .unwrap()
@@ -1227,7 +1264,7 @@ mod tests {
             "pi host update must also refresh pi-acp"
         );
 
-        let full_update = update_command("pi", true, true, true).expect("pi full update");
+        let full_update = update_command("pi", true, true, true, false).expect("pi full update");
         assert_eq!(
             full_update.matches("pi-acp").count(),
             1,
@@ -1235,7 +1272,7 @@ mod tests {
         );
 
         let install_when_missing =
-            update_command("pi", false, false, true).expect("pi install when missing");
+            update_command("pi", false, false, true, false).expect("pi install when missing");
         assert_eq!(
             install_when_missing.matches("pi-acp").count(),
             1,

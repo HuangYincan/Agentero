@@ -308,7 +308,9 @@
 			"default": "默认",
 			"agentInstalled": "Agent 已安装",
 			"agentMissing": "无 Agent",
-			"acpMissing": "无 ACP"
+			"acpMissing": "无 ACP",
+			"acpBundled": "内置",
+			"acpBundledTitle": "内置 ACP 适配器 {{version}} —— 仅在 PATH 无适配器时启用（PATH 安装优先；内置版本随应用发版更新）。"
 		},
 		"permission": {
 			"label": "权限模式",

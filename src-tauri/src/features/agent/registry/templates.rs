@@ -1,6 +1,9 @@
 use crate::features::agent::models::{AgentTemplate, AgentTemplateInfo};
 
-/// Preset command templates only — binaries are never bundled with Agentero.
+/// Preset command templates only — host binaries are never bundled with
+/// Agentero. The Claude/Codex ACP adapters are the one exception to "nothing
+/// bundled": their JS-only trees ship as app resources as an offline fallback
+/// (see `registry::bundled`; a PATH-installed adapter always wins).
 ///
 /// `detect_command` is used for "installed on PATH" status when the ACP entrypoint
 /// differs (e.g. Claude/Codex via npx adapters still want to show the host CLI).

@@ -28,8 +28,12 @@ export type CatalogEntry = {
 	/** Agent host CLI on PATH (`detect_command`). */
 	binaryAvailable: boolean;
 	resolvedPath?: string | null;
-	/** ACP entrypoint on PATH (`command`). */
+	/** ACP entrypoint on PATH (`command`), or served by the bundled tier. */
 	acpCommandAvailable: boolean;
+	/** Bundled ACP adapter tier present in app resources (offline fallback). */
+	acpBundled?: boolean;
+	/** Version of the bundled adapter, when staged. */
+	acpBundledVersion?: string | null;
 	acpStatus: CatalogAcpStatus;
 	registeredId?: string | null;
 	isDefault: boolean;
