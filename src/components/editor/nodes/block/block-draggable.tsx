@@ -1,6 +1,15 @@
 "use client";
 
-import { DndPlugin, useDraggable, useDropLine } from "@platejs/dnd";
+import {
+	DndPlugin,
+	type DragItemNode,
+	type ElementDragItemNode,
+	getDropPath,
+	onDropNode,
+	onHoverNode,
+	useDraggable,
+	useDropLine,
+} from "@platejs/dnd";
 import { expandListItemsWithChildren } from "@platejs/list";
 import {
 	BlockSelectionPlugin,
@@ -17,11 +26,13 @@ import {
 	usePluginOptions,
 } from "platejs/react";
 import * as React from "react";
+import type { DropTargetMonitor } from "react-dnd";
 
 import { setBlockDragAnchor } from "@/components/editor/nodes/block/block-drag-preview";
 import { BlockHandleMenu } from "@/components/editor/nodes/block/block-handle-menu";
 import { cn } from "@/lib/core/utils";
 import { isBlankParagraph } from "@/lib/markdown/block-selection";
+import { isImageishType } from "@/lib/markdown/image-group";
 
 /**
  * Mirrors the two global drag/marquee flags onto the editable root as data
@@ -63,17 +74,93 @@ export const BlockDraggable: RenderNodeWrapper = (props) => {
 	return (childProps: PlateElementProps) => <Draggable {...childProps} />;
 };
 
+function isElementDragItemNode(
+	dragItem: DragItemNode,
+): dragItem is ElementDragItemNode {
+	return "id" in dragItem && dragItem.id != null;
+}
+
+/**
+ * 单块图片/组的拖拽在图片类目标上横向落位(左右半分),与目标并排成组;
+ * 多块拖拽与非图片块保持纵向(上下半分)的常规行为。
+ */
+function imageGroupDropOrientation(
+	editor: PlateEditor,
+	dragItem: ElementDragItemNode,
+): "horizontal" | "vertical" {
+	if (Array.isArray(dragItem.id) && dragItem.id.length > 1) return "vertical";
+	if (!dragItem.element || !isImageishType(editor, dragItem.element.type))
+		return "vertical";
+	return "horizontal";
+}
+
 function Draggable(props: PlateElementProps) {
 	const { children, editor, element } = props;
 	const blockSelectionApi = editor.getApi(BlockSelectionPlugin).blockSelection;
 
-	const { isDragging, nodeRef, handleRef } = useDraggable({
+	// 图片/组目标需要横向 hover/drop,而 useDraggable 内部自建 nodeRef 在
+	// 覆盖回调里拿不到 —— 自建一个,既传入 hook 也挂到节点上。
+	const dropNodeRef = React.useRef<HTMLDivElement | null>(null);
+	const isImageishTarget = isImageishType(editor, element.type);
+
+	const { isDragging, handleRef } = useDraggable({
 		element,
+		nodeRef: dropNodeRef,
 		onDropHandler: (_, { dragItem }) => {
 			const id = (dragItem as { id: string[] | string }).id;
 			blockSelectionApi.add(id);
 			return false;
 		},
+		// 覆盖 hover 与 drop:getDropPath 内部按 orientation 重算方向,
+		// 显示的落线(横向)与实际落位必须同轴,只改 hover 会错位。
+		...(isImageishTarget && {
+			drop: {
+				hover: (dragItem: DragItemNode, monitor: DropTargetMonitor) => {
+					onHoverNode(editor, {
+						dragItem,
+						element,
+						monitor,
+						nodeRef: dropNodeRef,
+						orientation: isElementDragItemNode(dragItem)
+							? imageGroupDropOrientation(editor, dragItem)
+							: "vertical",
+					});
+				},
+				drop: (dragItem: DragItemNode, monitor: DropTargetMonitor) => {
+					// 文件拖放保持 stock 语义(纵向落位插入),图片文件仍可拖入。
+					if (!isElementDragItemNode(dragItem)) {
+						const result = getDropPath(editor, {
+							dragItem,
+							element,
+							monitor,
+							nodeRef: dropNodeRef,
+							orientation: "vertical",
+						});
+						const onDropFiles = editor.getOptions(DndPlugin).onDropFiles;
+						if (!result || !onDropFiles) return;
+						onDropFiles({
+							id: element.id as string,
+							dragItem,
+							editor,
+							monitor,
+							nodeRef: dropNodeRef,
+							target: result.to,
+						});
+						return;
+					}
+					// 复刻 onDropHandler(drop 后恢复块选),再走横向落位;
+					// 左≡上、右≡下,moveNodes 落到目标旁,成组交给 normalize。
+					blockSelectionApi.add(dragItem.id);
+					onDropNode(editor, {
+						dragItem,
+						element,
+						monitor,
+						nodeRef: dropNodeRef,
+						orientation: imageGroupDropOrientation(editor, dragItem),
+					});
+				},
+			},
+		}),
 	});
 
 	const [dragButtonTop, setDragButtonTop] = React.useState(0);
@@ -185,7 +272,7 @@ function Draggable(props: PlateElementProps) {
 
 			{/* biome-ignore lint/a11y/noStaticElementInteractions: right-click selects the block */}
 			<div
-				ref={nodeRef}
+				ref={dropNodeRef}
 				className="slate-blockWrapper flow-root"
 				onContextMenu={(event) =>
 					editor
@@ -194,7 +281,7 @@ function Draggable(props: PlateElementProps) {
 				}
 			>
 				<MemoizedChildren>{children}</MemoizedChildren>
-				<DropLine />
+				<DropLine orientation={isImageishTarget ? "horizontal" : "vertical"} />
 			</div>
 		</div>
 	);
@@ -229,16 +316,22 @@ function Gutter({
 	);
 }
 
-const DropLine = React.memo(function DropLine() {
-	const { dropLine } = useDropLine();
+const DropLine = React.memo(function DropLine({
+	orientation,
+}: {
+	orientation: "horizontal" | "vertical";
+}) {
+	const { dropLine } = useDropLine({ orientation });
 	if (!dropLine) return null;
 
 	return (
 		<div
 			className={cn(
-				"slate-dropLine pointer-events-none absolute inset-x-0 z-10 h-0.5 bg-foreground/40",
-				dropLine === "top" && "-top-px",
-				dropLine === "bottom" && "-bottom-px",
+				"slate-dropLine pointer-events-none absolute z-10 bg-foreground/40",
+				dropLine === "top" && "-top-px inset-x-0 h-0.5",
+				dropLine === "bottom" && "-bottom-px inset-x-0 h-0.5",
+				dropLine === "left" && "-left-px inset-y-0 w-0.5",
+				dropLine === "right" && "-right-px inset-y-0 w-0.5",
 			)}
 		/>
 	);

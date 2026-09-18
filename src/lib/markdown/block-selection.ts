@@ -9,6 +9,7 @@ import {
 	type SlateEditor,
 	type TElement,
 } from "platejs";
+import { IMAGE_GROUP_KEY } from "@/lib/markdown/image-group";
 
 /** Zero-width / whitespace that Slate uses to keep an empty text leaf alive. */
 const INVISIBLE_RE = /\s|\u200B|\u200C|\u200D|\uFEFF/g;
@@ -141,16 +142,21 @@ export function insertBreakAfterHorizontalRule(editor: SlateEditor): boolean {
 }
 
 /**
- * Enter while void blocks (hr / image) are block-selected: the selection
- * plugin only re-focuses the void, so break out into a paragraph below the
- * last selected block instead.
+ * Enter while void-like blocks (hr / image / image group) are block-selected:
+ * the selection plugin only re-focuses the void, so break out into a paragraph
+ * below the last selected block instead.
  */
 export function insertBreakAfterSelectedVoidBlocks(
 	editor: SlateEditor,
 ): boolean {
 	const nodes = selectedBlockNodes(editor);
 	if (nodes.length === 0) return false;
-	if (!getPluginByType(editor, nodes[0].type)?.node.isVoid) return false;
+	const firstType = nodes[0].type;
+	// 图片组是容器而非 void 插件,但块选后的 Enter 语义与 void 相同。
+	const isVoidLike =
+		firstType === IMAGE_GROUP_KEY ||
+		Boolean(getPluginByType(editor, firstType)?.node.isVoid);
+	if (!isVoidLike) return false;
 	const lastPath = editor.api.findPath(nodes[nodes.length - 1]);
 	if (!lastPath) return false;
 	editor.getApi(BlockSelectionPlugin).blockSelection.deselect();

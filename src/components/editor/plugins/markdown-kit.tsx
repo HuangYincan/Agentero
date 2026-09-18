@@ -14,6 +14,7 @@ import {
 	remarkObsidianCallout,
 } from "@/lib/markdown/callout";
 import { htmlRules, remarkPreserveHtml } from "@/lib/markdown/html";
+import { imageGroupRules, remarkImageGroup } from "@/lib/markdown/image-group";
 import {
 	remarkWikiLinkLiteralPaths,
 	wikiLinkRules,
@@ -54,9 +55,15 @@ export const MarkdownKit = [
 				remarkMdx,
 				remarkMention,
 				remarkObsidianCallout,
+				remarkImageGroup,
 				remarkPreserveHtml,
 			],
-			rules: { ...wikiLinkRules, ...obsidianCalloutRules, ...htmlRules },
+			rules: {
+				...wikiLinkRules,
+				...obsidianCalloutRules,
+				...imageGroupRules,
+				...htmlRules,
+			},
 		},
 	}),
 	MarkdownPastePlugin,

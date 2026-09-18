@@ -9,6 +9,7 @@ import {
 } from "platejs/react";
 import { useEffect, useState } from "react";
 
+import { useImageGroup } from "@/components/editor/context/image-group-context";
 import { useMarkdownDoc } from "@/components/editor/context/markdown-doc-context";
 import { useMarkdownExportMode } from "@/components/editor/markdown-export-mode-context";
 import { cn } from "@/lib/core/utils";
@@ -25,6 +26,7 @@ export function ImageElement(props: PlateElementProps<TImageElement>) {
 	const alt = (props.element as { alt?: string }).alt ?? "";
 	const { filePath } = useMarkdownDoc();
 	const exportMode = useMarkdownExportMode();
+	const imageGroup = useImageGroup();
 	const selected = useSelected();
 	const focused = useFocused();
 	const active = selected && focused;
@@ -76,7 +78,7 @@ export function ImageElement(props: PlateElementProps<TImageElement>) {
 	return (
 		<PlateElement
 			{...props}
-			className={cn("py-2", active && "rounded-sm")}
+			className={cn(imageGroup ? null : "py-2", active && "rounded-sm")}
 			data-selected={active ? "true" : undefined}
 		>
 			{/*
@@ -95,11 +97,23 @@ export function ImageElement(props: PlateElementProps<TImageElement>) {
 						src={src}
 						alt={alt}
 						className={cn(
-							"max-w-full rounded-sm",
+							// 组内由 item 的 aspect-ratio 定形,图片铺满格子等高显示。
+							imageGroup
+								? "h-full w-full rounded-sm object-contain"
+								: "max-w-full rounded-sm",
 							active && "ring-2 ring-ring ring-offset-2 ring-offset-background",
 						)}
 						loading={exportMode ? "eager" : "lazy"}
 						draggable={false}
+						onLoad={(event) => {
+							const img = event.currentTarget;
+							if (imageGroup && img.naturalWidth > 0 && img.naturalHeight > 0) {
+								imageGroup.reportRatio(
+									url,
+									img.naturalWidth / img.naturalHeight,
+								);
+							}
+						}}
 					/>
 				) : url ? (
 					<div
