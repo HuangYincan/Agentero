@@ -35,7 +35,7 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   环境变量（`SHELL -lic 'env -0'`）以及 `AgentDescriptor.env`。这样 macOS/Linux 上从
   GUI 启动 Agentero 也能读到 `.zshrc` / `.bashrc` 里 `export` 的 `OPENAI_API_KEY`、
   `OPENAI_BASE_URL` 等变量；`AgentDescriptor.env` 优先级最高，可覆盖 shell 值（#478）。
-- 统一接口：OpenCode、OpenClaw、Hermes、Claude ACP、Codex ACP、Qoder、Grok、Pi、Dsh（DeepSeek Harness）、Kimi Code、ZCode、自定义 `command`/`args`/`env`。
+- 统一接口：OpenCode、OpenClaw、Hermes、Claude ACP、Codex ACP、Qoder、Grok、Pi、Dsh（DeepSeek Harness）、Kimi Code、ZCode、MiniMax Code、自定义 `command`/`args`/`env`。
 - Dsh：umbrella CLI `@deepseek-ai/dsh`（npm，需 0.1.2+）内置 ACP profile——
   `dsh --profile acp` 以 ACP stdio 服务，首次启动从内置模板自动初始化 profile
   （`$DSH_HOME/profiles/acp`），无需手写 `cordis.yml` 或受管 launcher 目录。
@@ -53,6 +53,12 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   `@moonshot-ai/kimi-code`（需 Node 22.19+）作回退。`kimi upgrade` 是交互式的，静默
   `update` 重跑幂等的官方 installer。登录在终端完成（`kimi` → `/login`，OAuth 或
   Moonshot API key），skill 走 slash mention。
+- MiniMax Code：原生 ACP（`mcode acp`）。npm 包 `@minimax-ai/code`（需 Node 22.19+
+  或 24+）安装后提供 `mcode`，detect/ACP 入口同二进制，静默 install/update 走
+  `npm install --global @minimax-ai/code@latest --ignore-scripts=false
+  --include=optional --allow-scripts=@minimax-ai/code,better-sqlite3
+  --registry https://registry.npmjs.org/ --foreground-scripts`，登录命令为
+  `mcode login`，skill 走 slash mention。
 - ZCode：host CLI 无原生 ACP，走社区适配器 `zcode-acp-server`（桥接无头
   `zcode app-server --stdio`，声明 `session/load` 续聊）。zcode CLI 内置在 ZCode
   桌面应用中、通常不在 PATH 上，适配器会自动发现桌面应用内置 CLI（或用 `ZCODE_BIN`

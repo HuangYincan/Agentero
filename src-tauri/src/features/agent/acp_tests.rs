@@ -51,6 +51,7 @@ mod acp_live {
         assert!(ids.contains(&"dsh"));
         assert!(ids.contains(&"kimi-code"));
         assert!(ids.contains(&"zcode"));
+        assert!(ids.contains(&"minimax-code"));
         assert!(!ids.contains(&"custom"));
     }
 
@@ -138,6 +139,18 @@ mod acp_live {
         assert_eq!(kimi.command, "kimi");
         assert_eq!(kimi.args, vec!["acp".to_string()]);
         assert_eq!(kimi.detect_command.as_deref(), Some("kimi"));
+    }
+
+    #[test]
+    fn minimax_template_uses_native_acp() {
+        let minimax = catalog_templates()
+            .into_iter()
+            .find(|entry| entry.id == "minimax-code")
+            .expect("MiniMax Code template");
+        assert_eq!(minimax.command, "mcode");
+        assert_eq!(minimax.args, vec!["acp".to_string()]);
+        assert_eq!(minimax.detect_command.as_deref(), Some("mcode"));
+        assert_eq!(minimax.login_command.as_deref(), Some("mcode login"));
     }
 
     /// grok-build must not detect or launch through `npx`: `npx` resolves on any

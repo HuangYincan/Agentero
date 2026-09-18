@@ -351,6 +351,7 @@ function catalogTemplateFromId(templateId: string): AgentTemplate | undefined {
 		case "dsh":
 		case "kimi-code":
 		case "zcode":
+		case "minimax-code":
 		case "custom":
 			return templateId;
 		default:

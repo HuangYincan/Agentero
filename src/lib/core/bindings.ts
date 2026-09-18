@@ -1274,7 +1274,12 @@ export type AgentTemplate = "opencode" |
  *  (`~/.zcode`); the adapter auto-discovers the app-bundled CLI.
  *  Docs: https://github.com/william0wang/zcode-acp
  */
-"zcode" | "custom";
+"zcode" | 
+/**
+ *  MiniMax Code CLI with native ACP (`mcode acp`).
+ *  Docs: https://agent.minimax.io/docs/cli/quick-start
+ */
+"minimax-code" | "custom";
 
 /**  ACP tool call create/update for UI (`Tool` element). */
 export type AgentToolEvent = AgentToolEvent_Serialize | AgentToolEvent_Deserialize;

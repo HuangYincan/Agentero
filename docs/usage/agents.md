@@ -10,7 +10,7 @@ Agentero 使用 **BYOA**（Bring Your Own Agent）：Agent 由你安装和登录
 
 - Claude ACP
 - Codex（经 ACP 适配器）
-- OpenCode、Qoder、Grok、Kimi Code、ZCode 等兼容 ACP 的 CLI（ZCode 经 `zcode-acp-server` 适配器，复用桌面版登录）
+- OpenCode、Qoder、Grok、Kimi Code、ZCode、MiniMax Code 等兼容 ACP 的 CLI（ZCode 经 `zcode-acp-server` 适配器，复用桌面版登录）
 - [GenericAgent ACP](genericagent-acp.md)
 - 自定义 `command` / `args` / `env`
 
@@ -48,7 +48,7 @@ Agentero 使用 **BYOA**（Bring Your Own Agent）：Agent 由你安装和登录
 
 1. 打开 **Settings → Agent**，在已安装或已注册的 Agent 行点 **Trash** 按钮。
 2. 确认对话框展示该 Agent 的 logo 与将要执行的清理项：
-   - Agentero 静默安装的 npm 全局包（如 `opencode-ai`、`@anthropic-ai/claude-code` 等）逐个 `npm uninstall -g`；
+   - Agentero 静默安装的 npm 全局包（如 `opencode-ai`、`@anthropic-ai/claude-code`、`@minimax-ai/code` 等）逐个 `npm uninstall -g`；
    - Agentero 管理的目录（Kimi Code 的 `~/.kimi-code`、dsh 旧方案的遗留 `~/.agentero/dsh-acp`）整体删除。
 3. 确认后行内显示卸载进度，完成后注册项一并移除，行回到「未安装」状态。
 

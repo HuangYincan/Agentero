@@ -43,6 +43,10 @@ pub const DSH_INSTALL_COMMAND: &str = if cfg!(windows) {
     "npm i -g @deepseek-ai/dsh@latest --prefix \"$HOME/.local\""
 };
 
+/// MiniMax Code native ACP CLI (`mcode acp`). The package ships native SQLite
+/// dependencies, so npm must run install scripts and include optional deps.
+pub const MINIMAX_CODE_INSTALL_COMMAND: &str = "npm install --global @minimax-ai/code@latest --ignore-scripts=false --include=optional --allow-scripts=@minimax-ai/code,better-sqlite3 --registry https://registry.npmjs.org/ --foreground-scripts";
+
 /// Default install directory of the official Kimi Code installer (single
 /// binary, written into the shell rc). Used for uninstall cleanup.
 pub fn kimi_launcher_dir() -> std::path::PathBuf {
@@ -398,6 +402,22 @@ pub fn builtin_templates() -> Vec<AgentTemplateInfo> {
             login_command: None,
         },
         AgentTemplateInfo {
+            id: AgentTemplate::MinimaxCode.as_str().to_string(),
+            name: "MiniMax Code".to_string(),
+            description:
+                "MiniMax Code CLI with native ACP (`mcode acp`). Log in once with `mcode login`."
+                    .to_string(),
+            command: "mcode".to_string(),
+            args: vec!["acp".to_string()],
+            detect_command: Some("mcode".to_string()),
+            install_hint: format!(
+                "{MINIMAX_CODE_INSTALL_COMMAND}  ·  needs Node 22.19+ (or 24+)  ·  \
+                 https://agent.minimax.io/docs/cli/quick-start"
+            ),
+            install_command: Some(MINIMAX_CODE_INSTALL_COMMAND.to_string()),
+            login_command: Some("mcode login".to_string()),
+        },
+        AgentTemplateInfo {
             id: AgentTemplate::Custom.as_str().to_string(),
             name: "Custom".to_string(),
             description: "Any ACP-compatible command + args.".to_string(),
@@ -432,6 +452,7 @@ pub fn template_from_id(id: &str) -> AgentTemplate {
         "dsh" => AgentTemplate::Dsh,
         "kimi-code" => AgentTemplate::KimiCode,
         "zcode" => AgentTemplate::Zcode,
+        "minimax-code" => AgentTemplate::MinimaxCode,
         _ => AgentTemplate::Custom,
     }
 }

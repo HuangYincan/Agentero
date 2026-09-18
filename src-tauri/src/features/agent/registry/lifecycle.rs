@@ -9,7 +9,8 @@ use crate::features::agent::registry::discovery::path_entries;
 use crate::features::agent::registry::discovery::resolve_command;
 use crate::features::agent::registry::templates::{
     kimi_launcher_dir, template_info, CLAUDE_ACP_INSTALL_COMMAND, DSH_INSTALL_COMMAND,
-    PI_ACP_INSTALL_COMMAND, PI_HOST_INSTALL_COMMAND, ZCODE_ACP_INSTALL_COMMAND,
+    MINIMAX_CODE_INSTALL_COMMAND, PI_ACP_INSTALL_COMMAND, PI_HOST_INSTALL_COMMAND,
+    ZCODE_ACP_INSTALL_COMMAND,
 };
 use serde::Serialize;
 use std::collections::HashSet;
@@ -85,6 +86,7 @@ pub const LIFECYCLE_TEMPLATES: &[&str] = &[
     "dsh",
     "kimi-code",
     "zcode",
+    "minimax-code",
 ];
 
 /// Launcher directory of the retired dsh ACP-demo scheme (managed `npm i` of
@@ -286,6 +288,10 @@ pub fn uninstall_info(template_id: &str) -> Option<UninstallInfo> {
         "dsh" => (vec![dsh_host], Vec::new()),
         "kimi-code" => (
             vec!["npm uninstall -g @moonshot-ai/kimi-code".to_string()],
+            Vec::new(),
+        ),
+        "minimax-code" => (
+            vec!["npm uninstall -g @minimax-ai/code".to_string()],
             Vec::new(),
         ),
         // Single-package adapter: the ACP bridge is the only npm artifact
@@ -555,6 +561,7 @@ fn host_install_command(template_id: &str) -> Result<String, String> {
                 &kimi_install_windows_command(),
                 KIMI_NPM_INSTALL_COMMAND,
             )),
+            "minimax-code" => Ok(MINIMAX_CODE_INSTALL_COMMAND.to_string()),
             "grok-build" => Ok(chain_or(
                 &grok_install_windows_command(),
                 "npm i -g @xai-official/grok@latest",
@@ -580,6 +587,7 @@ fn host_install_command(template_id: &str) -> Result<String, String> {
             "pi" => Ok(PI_HOST_INSTALL_COMMAND.to_string()),
             "dsh" => Ok(DSH_INSTALL_COMMAND.to_string()),
             "kimi-code" => Ok(chain_or(KIMI_INSTALL_UNIX, KIMI_NPM_INSTALL_COMMAND)),
+            "minimax-code" => Ok(MINIMAX_CODE_INSTALL_COMMAND.to_string()),
             "grok-build" => Ok(chain_or(
                 GROK_INSTALL_UNIX,
                 "npm i -g @xai-official/grok@latest",
@@ -633,6 +641,7 @@ fn host_update_command(template_id: &str) -> Result<String, String> {
         // selection), so silent update re-runs the idempotent official installer
         // (latest version) with the npm install as fallback.
         "kimi-code" => Ok(host_install_command(template_id)?),
+        "minimax-code" => Ok(MINIMAX_CODE_INSTALL_COMMAND.to_string()),
         "hermes" => {
             #[cfg(target_os = "windows")]
             {
@@ -760,6 +769,8 @@ npm i -g openclaw@latest
 # Kimi Code
 {kimi}
 # (or) npm i -g @moonshot-ai/kimi-code@latest
+# MiniMax Code
+{minimax}
 # Dsh (DeepSeek Harness, ACP via dsh --profile acp)
 {dsh}"#,
             claude_acp = CLAUDE_ACP_INSTALL_COMMAND,
@@ -768,6 +779,7 @@ npm i -g openclaw@latest
             hermes = hermes_install_windows_command(),
             grok = grok_install_windows_command(),
             kimi = kimi_install_windows_command(),
+            minimax = MINIMAX_CODE_INSTALL_COMMAND,
             dsh = DSH_INSTALL_COMMAND,
         )
     }
@@ -793,6 +805,8 @@ npm i -g openclaw@latest
 {grok} || npm i -g @xai-official/grok@latest
 # Kimi Code
 {kimi} || npm i -g @moonshot-ai/kimi-code@latest
+# MiniMax Code
+{minimax}
 # Dsh (DeepSeek Harness, ACP via dsh --profile acp)
 {dsh}"#,
             claude_host = CLAUDE_INSTALL_UNIX,
@@ -803,6 +817,7 @@ npm i -g openclaw@latest
             hermes = HERMES_INSTALL_UNIX,
             grok = GROK_INSTALL_UNIX,
             kimi = KIMI_INSTALL_UNIX,
+            minimax = MINIMAX_CODE_INSTALL_COMMAND,
             dsh = DSH_INSTALL_COMMAND,
         )
     }
@@ -1347,6 +1362,22 @@ mod tests {
         assert!(!cmd.contains("curl"));
         // Update re-runs the idempotent npm install (no official self-update).
         let update = host_update_command("dsh").expect("dsh update");
+        assert_eq!(update, cmd);
+    }
+
+    #[test]
+    fn minimax_install_allows_native_sqlite_dependencies() {
+        let cmd = host_install_command("minimax-code").expect("MiniMax Code install");
+        assert!(cmd.contains("@minimax-ai/code@latest"), "{cmd}");
+        assert!(cmd.contains("--ignore-scripts=false"), "{cmd}");
+        assert!(cmd.contains("--include=optional"), "{cmd}");
+        assert!(
+            cmd.contains("--allow-scripts=@minimax-ai/code,better-sqlite3"),
+            "{cmd}"
+        );
+        assert!(cmd.contains("--foreground-scripts"), "{cmd}");
+
+        let update = host_update_command("minimax-code").expect("MiniMax Code update");
         assert_eq!(update, cmd);
     }
 

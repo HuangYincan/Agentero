@@ -16,6 +16,7 @@ export type AgentLogoKey =
 	| "dsh"
 	| "kimi-code"
 	| "zcode"
+	| "minimax-code"
 	| "custom";
 
 export function agentLogoKeyForTemplate(
@@ -33,6 +34,7 @@ export function agentLogoKeyForTemplate(
 		case "dsh":
 		case "kimi-code":
 		case "zcode":
+		case "minimax-code":
 			return template;
 		default:
 			return "custom";
@@ -103,6 +105,9 @@ export function AgentLogo({
 			break;
 		case "zcode":
 			icon = <ZcodeMark className={iconClass} />;
+			break;
+		case "minimax-code":
+			icon = <MiniMaxMark className={iconClass} />;
 			break;
 		case "qodercli":
 			icon = <QoderMark className={neutralIconClass} />;
@@ -259,6 +264,28 @@ function ZcodeMark(props: ComponentProps<"svg">) {
 				<rect x="6" y="15.7" width="12" height="2.7" />
 			</g>
 			<path d="M11.07 12.69L13.03 11.31" stroke="#0A0A0A" strokeWidth="1.2" />
+		</svg>
+	);
+}
+
+function MiniMaxMark(props: ComponentProps<"svg">) {
+	return (
+		<svg viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+			<title>MiniMax Code</title>
+			<rect x="1" y="1" width="22" height="22" rx="5.5" fill="#111827" />
+			<path
+				d="M5.5 17.5V7.1L10.3 12L15.1 7.1V17.5"
+				stroke="#FFFFFF"
+				strokeWidth="2.1"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
+			<path
+				d="M18.5 7.1V17.5"
+				stroke="#26C6DA"
+				strokeWidth="2.1"
+				strokeLinecap="round"
+			/>
 		</svg>
 	);
 }

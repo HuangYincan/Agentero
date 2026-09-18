@@ -46,6 +46,7 @@ pub fn npm_package_for_template(template_id: &str) -> Option<&'static str> {
         "dsh" => Some("@deepseek-ai/dsh"),
         "kimi-code" => Some("@moonshot-ai/kimi-code"),
         "zcode" => Some("zcode-acp-server"),
+        "minimax-code" => Some("@minimax-ai/code"),
         _ => None,
     }
 }
@@ -290,6 +291,10 @@ mod tests {
         );
         assert_eq!(npm_package_for_template("hermes"), None);
         assert_eq!(npm_package_for_template("dsh"), Some("@deepseek-ai/dsh"));
+        assert_eq!(
+            npm_package_for_template("minimax-code"),
+            Some("@minimax-ai/code")
+        );
     }
 
     #[test]

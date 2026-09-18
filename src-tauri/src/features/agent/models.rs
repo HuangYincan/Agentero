@@ -33,6 +33,9 @@ pub enum AgentTemplate {
     /// (`~/.zcode`); the adapter auto-discovers the app-bundled CLI.
     /// Docs: https://github.com/william0wang/zcode-acp
     Zcode,
+    /// MiniMax Code CLI with native ACP (`mcode acp`).
+    /// Docs: https://agent.minimax.io/docs/cli/quick-start
+    MinimaxCode,
     Custom,
 }
 
@@ -54,6 +57,7 @@ impl<'de> serde::Deserialize<'de> for AgentTemplate {
             "dsh" => Self::Dsh,
             "kimi-code" => Self::KimiCode,
             "zcode" => Self::Zcode,
+            "minimax-code" => Self::MinimaxCode,
             "custom" => Self::Custom,
             other => {
                 return Err(serde::de::Error::custom(format!(
@@ -78,6 +82,7 @@ impl AgentTemplate {
             Self::Dsh => "dsh",
             Self::KimiCode => "kimi-code",
             Self::Zcode => "zcode",
+            Self::MinimaxCode => "minimax-code",
             Self::Custom => "custom",
         }
     }

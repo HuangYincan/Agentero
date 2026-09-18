@@ -30,6 +30,7 @@ export type AgentTemplate =
 	| "dsh"
 	| "kimi-code"
 	| "zcode"
+	| "minimax-code"
 	| "custom";
 
 export type AgentDescriptor = {
