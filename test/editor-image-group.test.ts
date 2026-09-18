@@ -356,6 +356,25 @@ describe("image group normalize", () => {
 		]);
 	});
 
+	it("gives groups created by normalize an id (dnd and block selection rely on it)", () => {
+		// wrap_node 不经过 NodeIdPlugin 补 id,成组必须自带。
+		const wrapped = createNormalizeEditor([imageEl("a.png"), imageEl("b.png")]);
+		const groupId = (wrapped.children[0] as { id?: string }).id;
+		expect(typeof groupId).toBe("string");
+		expect(groupId.length).toBeGreaterThan(0);
+
+		const urls = Array.from(
+			{ length: MAX_IMAGE_GROUP_SIZE + 2 },
+			(_, i) => `i${i}.png`,
+		);
+		const split = createNormalizeEditor([
+			{ id: "src-group", type: IMAGE_GROUP_KEY, children: urls.map(imageEl) },
+		]);
+		const ids = split.children.map((node) => (node as { id?: string }).id);
+		// 溢出拆出的新组同样要有 id,且与源组互不相同。
+		expect(ids).toEqual(["src-group", expect.any(String)]);
+	});
+
 	it("splits an over-sized run coming from markdown", () => {
 		const lines = Array.from(
 			{ length: MAX_IMAGE_GROUP_SIZE + 1 },
@@ -383,5 +402,132 @@ describe("image group normalize", () => {
 		expect(editor.getApi(MarkdownPlugin).markdown.serialize()).toBe(
 			`${lines.slice(0, MAX_IMAGE_GROUP_SIZE).join("\n")}\n\n${lines[MAX_IMAGE_GROUP_SIZE]}\n`,
 		);
+	});
+});
+
+/**
+ * 组内拖拽的变换层:onDropNode(orientation:"horizontal")只做一次
+ * moveNodes(to 按移动前树坐标,move_node 的 apply 自带快照修正),
+ * 缩容/扩容/解散由 normalize 收敛。这里直接驱动同样的 moveNodes。
+ */
+describe("image group drag transforms", () => {
+	it("reorders images within a group", () => {
+		const editor = createNormalizeEditor([
+			{
+				type: IMAGE_GROUP_KEY,
+				children: ["a.png", "b.png", "c.png"].map(imageEl),
+			},
+		]);
+		// 拖 c 悬停 a 左半边 → 落到 a 之前。
+		editor.tf.moveNodes({ at: [0, 2], to: [0, 0] });
+		editor.tf.normalize({ force: true });
+
+		expect(editor.children).toHaveLength(1);
+		expect(urlsOf(editor.children[0])).toEqual(["c.png", "a.png", "b.png"]);
+	});
+
+	it("moves an image into the middle of another group and dissolves the leftover", () => {
+		const editor = createNormalizeEditor([
+			{
+				type: IMAGE_GROUP_KEY,
+				children: ["a.png", "b.png"].map(imageEl),
+			},
+			{ type: "p", children: [{ text: "between" }] },
+			{
+				type: IMAGE_GROUP_KEY,
+				children: ["c.png", "d.png", "e.png"].map(imageEl),
+			},
+		]);
+		// 拖 b 悬停 d 左半边 → 落到 c 与 d 之间(组由段落隔开才稳定存在)。
+		editor.tf.moveNodes({ at: [0, 1], to: [2, 1] });
+		editor.tf.normalize({ force: true });
+
+		// 源组剩单张 → 解散为独立图,段落护栏使它不回并目标组。
+		expect(editor.children.map((node) => node.type)).toEqual([
+			"img",
+			"p",
+			IMAGE_GROUP_KEY,
+		]);
+		expect(editor.children[0]).toMatchObject({ type: "img", url: "a.png" });
+		expect(urlsOf(editor.children[2])).toEqual([
+			"c.png",
+			"b.png",
+			"d.png",
+			"e.png",
+		]);
+	});
+
+	it("moves a top-level image into the middle of a group", () => {
+		const editor = createNormalizeEditor([
+			{ type: "p", children: [{ text: "p1" }] },
+			imageEl("t.png"),
+			{ type: "p", children: [{ text: "p2" }] },
+			{
+				type: IMAGE_GROUP_KEY,
+				children: ["a.png", "b.png", "c.png"].map(imageEl),
+			},
+		]);
+		// 拖顶层图 t 悬停组内 b 左半边 → 落到 a 与 b 之间。
+		editor.tf.moveNodes({ at: [1], to: [3, 1] });
+		editor.tf.normalize({ force: true });
+
+		expect(editor.children.map((node) => node.type)).toEqual([
+			"p",
+			"p",
+			IMAGE_GROUP_KEY,
+		]);
+		expect(urlsOf(editor.children[2])).toEqual([
+			"a.png",
+			"t.png",
+			"b.png",
+			"c.png",
+		]);
+	});
+
+	it("shrinks a source group when an image is dragged out beside a paragraph", () => {
+		const editor = createNormalizeEditor([
+			{ type: "p", children: [{ text: "p1" }] },
+			{
+				type: IMAGE_GROUP_KEY,
+				children: ["a.png", "b.png", "c.png"].map(imageEl),
+			},
+			{ type: "p", children: [{ text: "p2" }] },
+		]);
+		// 拖 c 悬停段落 p2 下半边 → 纵向落位到 p2 之后(顶层块 stock 语义);
+		// 紧贴原组落位会被 N5 重新吸收 —— 紧邻即成组。
+		editor.tf.moveNodes({ at: [1, 2], to: [3] });
+		editor.tf.normalize({ force: true });
+
+		expect(editor.children.map((node) => node.type)).toEqual([
+			"p",
+			IMAGE_GROUP_KEY,
+			"p",
+			"img",
+		]);
+		expect(urlsOf(editor.children[1])).toEqual(["a.png", "b.png"]);
+		expect(editor.children[3]).toMatchObject({ type: "img", url: "c.png" });
+	});
+
+	it("dissolves a group reduced to one image after an outward drag", () => {
+		const editor = createNormalizeEditor([
+			{ type: "p", children: [{ text: "p1" }] },
+			{
+				type: IMAGE_GROUP_KEY,
+				children: ["a.png", "b.png"].map(imageEl),
+			},
+			{ type: "p", children: [{ text: "p2" }] },
+		]);
+		// 拖 b 到文档末尾(p2 之后),与残留 a 之间隔着段落 → 不回并。
+		editor.tf.moveNodes({ at: [1, 1], to: [3] });
+		editor.tf.normalize({ force: true });
+
+		expect(editor.children.map((node) => node.type)).toEqual([
+			"p",
+			"img",
+			"p",
+			"img",
+		]);
+		expect(editor.children[1]).toMatchObject({ type: "img", url: "a.png" });
+		expect(editor.children[3]).toMatchObject({ type: "img", url: "b.png" });
 	});
 });

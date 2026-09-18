@@ -3,6 +3,7 @@ import {
 	KEYS,
 	NodeApi,
 	type NodeEntry,
+	nanoid,
 	type SlateEditor,
 	type TElement,
 } from "platejs";
@@ -137,6 +138,14 @@ export function normalizeImageGroups(
 		});
 	};
 
+	// wrap_node 不会触发 NodeIdPlugin 补 id(withNodeId 只拦 insert/split),
+	// 组级拖拽、落线与块选都依赖 element.id,建组时显式带上。
+	const newGroup = () => ({
+		id: nanoid(10),
+		type: IMAGE_GROUP_KEY,
+		children: [{ text: "" }],
+	});
+
 	return ([node, path]) => {
 		if (path.length !== 1) return normalizeNode([node, path]);
 		const element = node as TElement;
@@ -162,10 +171,9 @@ export function normalizeImageGroups(
 				// 溢出首张原地包成新组,其余逐个追加:恒取新组后的第一个,
 				// 源索引不漂移,目标索引恒为新组末尾(to 越界会被 Slate 收敛错位)。
 				repair(() => {
-					editor.tf.wrapNodes(
-						{ type: IMAGE_GROUP_KEY, children: [{ text: "" }] },
-						{ at: [...path, splitAt] },
-					);
+					editor.tf.wrapNodes(newGroup(), {
+						at: [...path, splitAt],
+					});
 					const overflow = children.length - splitAt - 1;
 					for (let i = 0; i < overflow; i++) {
 						editor.tf.moveNodes({
@@ -187,10 +195,7 @@ export function normalizeImageGroups(
 
 		if (prev.type === imgType && element.type === imgType) {
 			repair(() => {
-				editor.tf.wrapNodes(
-					{ type: IMAGE_GROUP_KEY, children: [{ text: "" }] },
-					{ at: [path[0] - 1] },
-				);
+				editor.tf.wrapNodes(newGroup(), { at: [path[0] - 1] });
 				editor.tf.moveNodes({ at: path, to: [path[0] - 1, 1] });
 			});
 			return;

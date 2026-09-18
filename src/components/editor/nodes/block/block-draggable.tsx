@@ -74,7 +74,7 @@ export const BlockDraggable: RenderNodeWrapper = (props) => {
 	return (childProps: PlateElementProps) => <Draggable {...childProps} />;
 };
 
-function isElementDragItemNode(
+export function isElementDragItemNode(
 	dragItem: DragItemNode,
 ): dragItem is ElementDragItemNode {
 	return "id" in dragItem && dragItem.id != null;
@@ -116,6 +116,9 @@ function Draggable(props: PlateElementProps) {
 		...(isImageishTarget && {
 			drop: {
 				hover: (dragItem: DragItemNode, monitor: DropTargetMonitor) => {
+					// 指针悬在组内图片 item 上时,更深的 item drop 目标同样会收到
+					// hover —— 让出落线,避免外层覆盖 item 的精确位置。
+					if (!monitor.isOver({ shallow: true })) return;
 					onHoverNode(editor, {
 						dragItem,
 						element,
