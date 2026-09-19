@@ -8,9 +8,9 @@
 use crate::features::agent::registry::discovery::path_entries;
 use crate::features::agent::registry::discovery::resolve_command;
 use crate::features::agent::registry::templates::{
-    kimi_launcher_dir, template_info, CLAUDE_ACP_INSTALL_COMMAND, DSH_INSTALL_COMMAND,
-    MINIMAX_CODE_INSTALL_COMMAND, PI_ACP_INSTALL_COMMAND, PI_HOST_INSTALL_COMMAND,
-    ZCODE_ACP_INSTALL_COMMAND,
+    kimi_launcher_dir, template_info, CLAUDE_ACP_INSTALL_COMMAND, CODEX_ACP_INSTALL_COMMAND,
+    DSH_INSTALL_COMMAND, MINIMAX_CODE_INSTALL_COMMAND, PI_ACP_INSTALL_COMMAND,
+    PI_HOST_INSTALL_COMMAND, ZCODE_ACP_INSTALL_COMMAND,
 };
 use serde::Serialize;
 use std::collections::HashSet;
@@ -258,6 +258,13 @@ pub fn uninstall_info(template_id: &str) -> Option<UninstallInfo> {
     let zcode_acp = "npm uninstall -g zcode-acp-server".to_string();
     #[cfg(not(target_os = "windows"))]
     let zcode_acp = "npm uninstall -g zcode-acp-server --prefix \"$HOME/.local\"".to_string();
+    // Mirrors CODEX_ACP_INSTALL_COMMAND: uninstall must target the same prefix
+    // the install used, or a user-prefix adapter leaves an orphan on Unix.
+    let codex_acp = if cfg!(windows) {
+        "npm uninstall -g @agentclientprotocol/codex-acp".to_string()
+    } else {
+        "npm uninstall -g @agentclientprotocol/codex-acp --prefix \"$HOME/.local\"".to_string()
+    };
     #[cfg(target_os = "windows")]
     let dsh_host = "npm uninstall -g @deepseek-ai/dsh".to_string();
     #[cfg(not(target_os = "windows"))]
@@ -273,7 +280,7 @@ pub fn uninstall_info(template_id: &str) -> Option<UninstallInfo> {
         ),
         "codex-acp" => (
             vec!["npm uninstall -g @openai/codex".to_string()],
-            vec!["npm uninstall -g @agentclientprotocol/codex-acp".to_string()],
+            vec![codex_acp],
         ),
         "pi" => (
             vec!["npm uninstall -g @earendil-works/pi-coding-agent".to_string()],
@@ -540,7 +547,7 @@ fn update_command(
 fn adapter_install_command(template_id: &str) -> Result<String, String> {
     match template_id {
         "claude-acp" => Ok(CLAUDE_ACP_INSTALL_COMMAND.to_string()),
-        "codex-acp" => Ok("npm i -g @agentclientprotocol/codex-acp@latest".to_string()),
+        "codex-acp" => Ok(CODEX_ACP_INSTALL_COMMAND.to_string()),
         "pi" => Ok(PI_ACP_INSTALL_COMMAND.to_string()),
         _ => Err(format!("no ACP adapter install for {template_id}")),
     }
@@ -753,7 +760,7 @@ npm i -g @anthropic-ai/claude-code@latest
 {claude_acp}
 # Codex + ACP adapter
 npm i -g @openai/codex@latest
-npm i -g @agentclientprotocol/codex-acp@latest
+{codex_acp}
 # OpenCode
 npm i -g opencode-ai@latest
 # OpenClaw
@@ -774,6 +781,7 @@ npm i -g openclaw@latest
 # Dsh (DeepSeek Harness, ACP via dsh --profile acp)
 {dsh}"#,
             claude_acp = CLAUDE_ACP_INSTALL_COMMAND,
+            codex_acp = CODEX_ACP_INSTALL_COMMAND,
             pi_host = PI_HOST_INSTALL_COMMAND,
             pi_acp = PI_ACP_INSTALL_COMMAND,
             hermes = hermes_install_windows_command(),
@@ -791,7 +799,7 @@ npm i -g openclaw@latest
 {claude_acp}
 # Codex + ACP adapter
 npm i -g @openai/codex@latest
-npm i -g @agentclientprotocol/codex-acp@latest
+{codex_acp}
 # OpenCode
 {opencode} || npm i -g opencode-ai@latest
 # OpenClaw
@@ -811,6 +819,7 @@ npm i -g openclaw@latest
 {dsh}"#,
             claude_host = CLAUDE_INSTALL_UNIX,
             claude_acp = CLAUDE_ACP_INSTALL_COMMAND,
+            codex_acp = CODEX_ACP_INSTALL_COMMAND,
             opencode = OPENCODE_INSTALL_UNIX,
             pi_host = PI_HOST_INSTALL_COMMAND,
             pi_acp = PI_ACP_INSTALL_COMMAND,
@@ -908,10 +917,34 @@ fn apply_npm_cache_env(cmd: &mut Command, default_cache: Option<&std::path::Path
 /// None when `default_cache` is usable; Some(managed dir) when managed
 /// installs must bypass an unwritable system cache.
 fn npm_cache_override(default_cache: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
-    if default_cache.is_some_and(dir_is_writable) {
+    if default_cache.is_some_and(npm_cache_writable) {
         return None;
     }
     Some(managed_npm_cache_dir())
+}
+
+/// The cache root may still be user-writable while a root-owned `_cacache`
+/// entry rejects writes: macOS `sudo` keeps `$HOME`, so one `sudo npm` run
+/// creates `_cacache/tmp`, `index-v5`, `content-v2` owned by root inside the
+/// user's own `~/.npm`. A root-only probe passes, no override happens, and npm
+/// then fails mid-install with the intermittent
+/// `EPERM: operation not permitted` users see "sometimes". Check the subtree
+/// npm actually writes into, not just the root.
+fn npm_cache_writable(dir: &std::path::Path) -> bool {
+    if !dir_is_writable(dir) {
+        return false;
+    }
+    let cacache = dir.join("_cacache");
+    if !cacache.is_dir() {
+        return true;
+    }
+    dir_is_writable(&cacache)
+        && std::fs::read_dir(&cacache).is_ok_and(|entries| {
+            entries
+                .flatten()
+                .filter(|entry| entry.path().is_dir())
+                .all(|entry| dir_is_writable(&entry.path()))
+        })
 }
 
 /// npm's effective cache for this user: an explicit `npm_config_cache` wins,
@@ -1266,6 +1299,28 @@ mod tests {
         assert!(adapter_install_command("pi").unwrap().contains("pi-acp"));
     }
 
+    /// Codex was the last adapter installed into the global npm prefix on Unix,
+    /// where a root-owned prefix makes `npm i -g` fail with EPERM. Install and
+    /// uninstall must both target the user prefix there (Windows keeps the
+    /// plain global install, matching claude/pi/zcode/dsh).
+    #[test]
+    fn codex_acp_commands_match_the_other_adapters() {
+        let install = adapter_install_command("codex-acp").unwrap();
+        let codex = uninstall_info("codex-acp").unwrap();
+        let uninstall = codex.acp.npm_commands[0].as_str();
+        let claude = adapter_install_command("claude-acp").unwrap();
+        assert_eq!(
+            install.contains("--prefix"),
+            claude.contains("--prefix"),
+            "codex-acp must follow the claude-acp prefix pattern: {install}"
+        );
+        assert_eq!(
+            install.contains("--prefix"),
+            uninstall.contains("--prefix"),
+            "codex-acp uninstall must mirror the install prefix: {uninstall}"
+        );
+    }
+
     #[test]
     fn pi_update_keeps_host_and_adapter_in_sync() {
         let host_update = host_update_command("pi").expect("pi host update");
@@ -1608,6 +1663,30 @@ mod tests {
             "unwritable default must be replaced: {stdout}"
         );
         let _ = fs::remove_file(&file);
+    }
+
+    /// A writable cache root with an unwritable `_cacache` child (what one
+    /// `sudo npm` run leaves behind on macOS, where sudo keeps `$HOME`): npm
+    /// fails mid-install even though the root probe passes, so the override
+    /// must look one level deeper. Unix-only: the simulation chmods a dir.
+    #[cfg(unix)]
+    #[test]
+    fn npm_cache_override_catches_root_owned_cacache_entries() {
+        use std::os::unix::fs::PermissionsExt;
+        let cache = std::env::temp_dir().join("agentero-npm-cache-test-poisoned");
+        let _ = fs::remove_dir_all(&cache);
+        let cacache = cache.join("_cacache");
+        let tmp = cacache.join("tmp");
+        fs::create_dir_all(&tmp).expect("create probe cache");
+        assert!(
+            npm_cache_override(Some(&cache)).is_none(),
+            "a healthy cache must not be overridden"
+        );
+        fs::set_permissions(&tmp, fs::Permissions::from_mode(0o000)).expect("chmod tmp to 000");
+        let managed = npm_cache_override(Some(&cache)).expect("poisoned cache must be overridden");
+        assert!(managed.ends_with("npm-cache"), "{managed:?}");
+        fs::set_permissions(&tmp, fs::Permissions::from_mode(0o755)).expect("restore tmp");
+        let _ = fs::remove_dir_all(&cache);
     }
 }
 

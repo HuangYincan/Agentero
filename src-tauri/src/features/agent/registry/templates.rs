@@ -21,6 +21,15 @@ pub const CLAUDE_ACP_INSTALL_COMMAND: &str = if cfg!(windows) {
     "npm i -g @agentclientprotocol/claude-agent-acp --prefix \"$HOME/.local\""
 };
 
+/// Codex ACP adapter — same Unix user-prefix reasoning as the Claude adapter.
+/// Was the last adapter still installed into the (often root-owned) global
+/// npm prefix on Unix, where `npm i -g` fails with EPERM unless run via sudo.
+pub const CODEX_ACP_INSTALL_COMMAND: &str = if cfg!(windows) {
+    "npm i -g @agentclientprotocol/codex-acp@latest"
+} else {
+    "npm i -g @agentclientprotocol/codex-acp@latest --prefix \"$HOME/.local\""
+};
+
 /// Community `pi-acp` adapter — pi itself has no native ACP mode, the adapter
 /// spawns `pi --mode rpc`. Same prefix reasoning as the Claude adapter above.
 pub const PI_ACP_INSTALL_COMMAND: &str = if cfg!(windows) {
@@ -297,9 +306,10 @@ pub fn builtin_templates() -> Vec<AgentTemplateInfo> {
             command: "codex-acp".to_string(),
             args: vec![],
             detect_command: Some("codex".to_string()),
-            install_hint: "npm i -g @agentclientprotocol/codex-acp  ·  needs Codex CLI auth"
-                .to_string(),
-            install_command: Some("npm i -g @agentclientprotocol/codex-acp".to_string()),
+            install_hint: format!(
+                "{CODEX_ACP_INSTALL_COMMAND}  ·  needs Codex CLI auth"
+            ),
+            install_command: Some(CODEX_ACP_INSTALL_COMMAND.to_string()),
             login_command: Some("codex login".to_string()),
         },
         AgentTemplateInfo {
