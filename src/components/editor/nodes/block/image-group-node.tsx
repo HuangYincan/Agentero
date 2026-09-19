@@ -1,7 +1,13 @@
 "use client";
 
 import type { DragItemNode, ElementDragItemNode } from "@platejs/dnd";
-import { onDropNode, onHoverNode, useDndNode, useDropLine } from "@platejs/dnd";
+import {
+	DRAG_ITEM_BLOCK,
+	onDropNode,
+	onHoverNode,
+	useDndNode,
+	useDropLine,
+} from "@platejs/dnd";
 import type { TElement } from "platejs";
 import {
 	type PlateEditor,
@@ -10,7 +16,7 @@ import {
 	useEditorRef,
 } from "platejs/react";
 import * as React from "react";
-import type { DropTargetMonitor } from "react-dnd";
+import { type DropTargetMonitor, useDrop } from "react-dnd";
 import { ImageGroupContext } from "@/components/editor/context/image-group-context";
 import { isElementDragItemNode } from "@/components/editor/nodes/block/block-draggable";
 import { cn } from "@/lib/core/utils";
@@ -25,6 +31,7 @@ type TImageGroupChild = TElement & { id?: string; url?: string };
  */
 export function ImageGroupElement(props: PlateElementProps<TElement>) {
 	const items = props.element.children as TImageGroupChild[];
+	const groupPath = props.path ?? [];
 	const [ratios, setRatios] = React.useState<Record<string, number>>({});
 	const reportRatio = React.useCallback((url: string, ratio: number) => {
 		setRatios((prev) =>
@@ -39,13 +46,15 @@ export function ImageGroupElement(props: PlateElementProps<TElement>) {
 					const element = items[index];
 					const ratio = element?.url ? ratios[element.url] : undefined;
 					return (
-						<ImageGroupItem
-							key={element?.id ?? index}
-							element={element}
-							ratio={ratio}
-						>
-							{child}
-						</ImageGroupItem>
+						<React.Fragment key={element?.id ?? index}>
+							<ImageGroupGapDropZone
+								groupPath={groupPath}
+								insertIndex={index}
+							/>
+							<ImageGroupItem element={element} ratio={ratio}>
+								{child}
+							</ImageGroupItem>
+						</React.Fragment>
 					);
 				})}
 			</PlateElement>
@@ -163,6 +172,64 @@ function ImageGroupItemDnd({
 				/>
 			) : null}
 		</ImageGroupItemLayout>
+	);
+}
+
+/**
+ * 图片组项之间的落位区：把单张图片拖到两个图的缝隙里，插入到对应位置。
+ * 宽度为 0 的 flex 占位，内部绝对定位把可感应区域扩大到实际 gap 上。
+ */
+function ImageGroupGapDropZone({
+	groupPath,
+	insertIndex,
+}: {
+	groupPath: number[];
+	insertIndex: number;
+}) {
+	const editor = useEditorRef();
+	const [{ isOver }, dropRef] = useDrop({
+		accept: DRAG_ITEM_BLOCK,
+		hover: (dragItem: DragItemNode, monitor: DropTargetMonitor) => {
+			if (!isSingleImageDrag(editor, dragItem)) return;
+			// 阻止事件继续冒泡到组外壳，避免同时触发整组的落线。
+			monitor.isOver({ shallow: true });
+		},
+		drop: (dragItem: DragItemNode, monitor: DropTargetMonitor) => {
+			if (!monitor.isOver({ shallow: true })) return;
+			if (!isElementDragItemNode(dragItem)) return;
+			if (!isSingleImageDrag(editor, dragItem)) return;
+
+			const sourceId = Array.isArray(dragItem.id)
+				? dragItem.id[0]
+				: dragItem.id;
+			const sourceEntry = editor.api.node({ id: sourceId, at: [] });
+			if (!sourceEntry) return;
+			const [, sourcePath] = sourceEntry;
+			if (!sourcePath) return;
+
+			const [groupIndex] = groupPath;
+			editor.tf.moveNodes({
+				at: sourcePath,
+				to: [groupIndex, insertIndex],
+			});
+		},
+		collect: (monitor) => ({ isOver: monitor.isOver({ shallow: true }) }),
+	});
+
+	return (
+		<div
+			ref={(node) => {
+				dropRef(node);
+			}}
+			className="relative w-0 self-stretch"
+		>
+			<div
+				className={cn(
+					"pointer-events-auto absolute left-1/2 top-0 bottom-0 z-20 w-3 -translate-x-1/2",
+					isOver && "bg-foreground/30",
+				)}
+			/>
+		</div>
 	);
 }
 
