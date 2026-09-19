@@ -58,7 +58,7 @@ import {
 } from "@platejs/table/react";
 import { common, createLowlight } from "lowlight";
 import { KEYS, TrailingBlockPlugin } from "platejs";
-import { ParagraphPlugin } from "platejs/react";
+import { createPlatePlugin, ParagraphPlugin } from "platejs/react";
 import { BlockquoteElement } from "@/components/editor/nodes/block/blockquote-node";
 import {
 	CodeBlockElement,
@@ -120,6 +120,32 @@ const listTargets = [
 ];
 
 const headingBreak = { break: { empty: "reset" } } as const;
+
+/**
+ * 工具栏按钮（marks / lists）在遇到非文本选区（如 void 块或 column_group 边界）
+ * 时会调用 Editor.leaf，导致崩溃。把 hasMark / some 包一层 try/catch，
+ * 在选区无效时安全返回 false。
+ */
+const SafeToolbarApiPlugin = createPlatePlugin({
+	key: "safeToolbarApi",
+}).overrideEditor(({ api: { hasMark, some } }) => ({
+	api: {
+		hasMark: (key: string) => {
+			try {
+				return hasMark(key);
+			} catch {
+				return false;
+			}
+		},
+		some: (options: any) => {
+			try {
+				return some(options);
+			} catch {
+				return false;
+			}
+		},
+	},
+}));
 
 /** Full Plate kit for editing Markdown as WYSIWYG rich text. */
 export const MarkdownEditorKit = [
@@ -307,4 +333,7 @@ export const MarkdownEditorKit = [
 
 	// Markdown serialization (MarkdownPlugin + footnotes + wikilink rules)
 	...MarkdownKit,
+
+	// Guard toolbar queries against invalid selections (void blocks, columns).
+	SafeToolbarApiPlugin,
 ];
