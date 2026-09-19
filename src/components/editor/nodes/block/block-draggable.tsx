@@ -15,7 +15,7 @@ import {
 	BlockSelectionPlugin,
 	useBlockSelected,
 } from "@platejs/selection/react";
-import { getPluginByType, type TElement } from "platejs";
+import { getPluginByType, NodeApi, type TElement } from "platejs";
 import {
 	MemoizedChildren,
 	type PlateEditor,
@@ -32,6 +32,12 @@ import { setBlockDragAnchor } from "@/components/editor/nodes/block/block-drag-p
 import { BlockHandleMenu } from "@/components/editor/nodes/block/block-handle-menu";
 import { cn } from "@/lib/core/utils";
 import { isBlankParagraph } from "@/lib/markdown/block-selection";
+import {
+	addColumnToGroup,
+	COLUMN_GROUP_KEY,
+	createColumnGroupFromBlocks,
+	MAX_COLUMNS,
+} from "@/lib/markdown/columns";
 import { isImageishType } from "@/lib/markdown/image-group";
 
 /**
@@ -67,10 +73,16 @@ export function BlockDragStateBridge() {
 	return null;
 }
 
+function isInsideColumnGroup(editor: PlateEditor, path: number[]): boolean {
+	if (path.length !== 2) return false;
+	const parent = NodeApi.get(editor, [path[0]]) as TElement | undefined;
+	return parent?.type === COLUMN_GROUP_KEY;
+}
+
 export const BlockDraggable: RenderNodeWrapper = (props) => {
 	const { editor, path } = props;
 	if (editor.dom.readOnly) return;
-	if (path.length !== 1) return;
+	if (path.length !== 1 && !isInsideColumnGroup(editor, path)) return;
 	return (childProps: PlateElementProps) => <Draggable {...childProps} />;
 };
 
@@ -95,13 +107,15 @@ function imageGroupDropOrientation(
 }
 
 function Draggable(props: PlateElementProps) {
-	const { children, editor, element } = props;
+	const { children, editor, element, path } = props;
 	const blockSelectionApi = editor.getApi(BlockSelectionPlugin).blockSelection;
 
 	// 图片/组目标需要横向 hover/drop,而 useDraggable 内部自建 nodeRef 在
 	// 覆盖回调里拿不到 —— 自建一个,既传入 hook 也挂到节点上。
 	const dropNodeRef = React.useRef<HTMLDivElement | null>(null);
 	const isImageishTarget = isImageishType(editor, element.type);
+	const isTopLevel = Array.isArray(path) && path.length === 1;
+	const [columnDrop, setColumnDrop] = React.useState(false);
 
 	const { isDragging, handleRef } = useDraggable({
 		element,
@@ -111,14 +125,30 @@ function Draggable(props: PlateElementProps) {
 			blockSelectionApi.add(id);
 			return false;
 		},
-		// 覆盖 hover 与 drop:getDropPath 内部按 orientation 重算方向,
-		// 显示的落线(横向)与实际落位必须同轴,只改 hover 会错位。
-		...(isImageishTarget && {
+		// 顶层块额外处理右侧分栏落位;图片类目标保持横向落线/落位。
+		...(isTopLevel && {
 			drop: {
 				hover: (dragItem: DragItemNode, monitor: DropTargetMonitor) => {
 					// 指针悬在组内图片 item 上时,更深的 item drop 目标同样会收到
 					// hover —— 让出落线,避免外层覆盖 item 的精确位置。
-					if (!monitor.isOver({ shallow: true })) return;
+					if (!monitor.isOver({ shallow: true })) {
+						setColumnDrop(false);
+						return;
+					}
+					if (
+						isColumnDropZone(
+							editor,
+							dragItem,
+							element,
+							monitor,
+							dropNodeRef,
+							path,
+						)
+					) {
+						setColumnDrop(true);
+						return;
+					}
+					setColumnDrop(false);
 					onHoverNode(editor, {
 						dragItem,
 						element,
@@ -130,6 +160,17 @@ function Draggable(props: PlateElementProps) {
 					});
 				},
 				drop: (dragItem: DragItemNode, monitor: DropTargetMonitor) => {
+					setColumnDrop(false);
+					if (columnDrop && isElementDragItemNode(dragItem)) {
+						handleColumnDrop(
+							editor,
+							dragItem,
+							element,
+							path,
+							blockSelectionApi,
+						);
+						return;
+					}
 					// 文件拖放保持 stock 语义(纵向落位插入),图片文件仍可拖入。
 					if (!isElementDragItemNode(dragItem)) {
 						const result = getDropPath(editor, {
@@ -285,6 +326,7 @@ function Draggable(props: PlateElementProps) {
 			>
 				<MemoizedChildren>{children}</MemoizedChildren>
 				<DropLine orientation={isImageishTarget ? "horizontal" : "vertical"} />
+				<ColumnDropLine show={columnDrop} />
 			</div>
 		</div>
 	);
@@ -339,6 +381,66 @@ const DropLine = React.memo(function DropLine({
 		/>
 	);
 });
+
+const COLUMN_DROP_THRESHOLD = 0.8;
+
+const ColumnDropLine = React.memo(function ColumnDropLine({
+	show,
+}: {
+	show: boolean;
+}) {
+	if (!show) return null;
+	return (
+		<div className="pointer-events-none absolute inset-y-0 -right-1 z-10 w-0.5 bg-foreground/60" />
+	);
+});
+
+function isColumnDropZone(
+	_editor: PlateEditor,
+	dragItem: DragItemNode,
+	targetElement: TElement,
+	monitor: DropTargetMonitor,
+	nodeRef: React.RefObject<HTMLDivElement | null>,
+	targetPath: number[],
+): boolean {
+	if (!isElementDragItemNode(dragItem)) return false;
+	if (Array.isArray(dragItem.id) && dragItem.id.length > 1) return false;
+	if (targetPath.length !== 1) return false;
+	const sourceId = Array.isArray(dragItem.id) ? dragItem.id[0] : dragItem.id;
+	if (sourceId === targetElement.id) return false;
+	if (
+		targetElement.type === COLUMN_GROUP_KEY &&
+		(targetElement.children as TElement[]).length >= MAX_COLUMNS
+	) {
+		return false;
+	}
+	const clientOffset = monitor.getClientOffset();
+	const rect = nodeRef.current?.getBoundingClientRect();
+	if (!clientOffset || !rect || rect.width <= 0) return false;
+	const relativeX = clientOffset.x - rect.left;
+	return relativeX >= rect.width * COLUMN_DROP_THRESHOLD;
+}
+
+function handleColumnDrop(
+	editor: PlateEditor,
+	dragItem: ElementDragItemNode,
+	targetElement: TElement,
+	targetPath: number[],
+	blockSelectionApi: { add: (id: string | string[]) => void },
+): void {
+	const sourceId = Array.isArray(dragItem.id) ? dragItem.id[0] : dragItem.id;
+	const sourceEntry = editor.api.node({ id: sourceId, at: [] });
+	if (!sourceEntry) return;
+	const [, sourcePath] = sourceEntry;
+	if (!sourcePath) return;
+
+	if (targetElement.type === COLUMN_GROUP_KEY) {
+		addColumnToGroup(editor, targetPath, sourcePath);
+	} else {
+		createColumnGroupFromBlocks(editor, targetPath, sourcePath);
+	}
+	blockSelectionApi.add(dragItem.id);
+}
 
 function isIdInDraggingSet(
 	id: unknown,

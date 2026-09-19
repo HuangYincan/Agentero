@@ -93,6 +93,10 @@ import {
 	KbdLeaf,
 } from "@/components/editor/nodes/leaf";
 import { CalloutPlugin } from "@/components/editor/plugins/callout-plugin";
+import {
+	ColumnGroupPlugin,
+	ColumnPlugin,
+} from "@/components/editor/plugins/column-group-plugin";
 import { FindReplaceKit } from "@/components/editor/plugins/find-replace-kit";
 import { HtmlBlockPlugin } from "@/components/editor/plugins/html-plugin";
 import { ImageGroupPlugin } from "@/components/editor/plugins/image-group-plugin";
@@ -157,6 +161,8 @@ export const MarkdownEditorKit = [
 	}),
 	CalloutPlugin,
 	ImageGroupPlugin,
+	ColumnGroupPlugin,
+	ColumnPlugin,
 	HtmlBlockPlugin,
 	HorizontalRulePlugin.configure({
 		inputRules: [

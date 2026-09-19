@@ -9,6 +9,7 @@ import {
 	type SlateEditor,
 	type TElement,
 } from "platejs";
+import { COLUMN_GROUP_KEY } from "@/lib/markdown/columns";
 import { IMAGE_GROUP_KEY } from "@/lib/markdown/image-group";
 
 /** Zero-width / whitespace that Slate uses to keep an empty text leaf alive. */
@@ -152,9 +153,10 @@ export function insertBreakAfterSelectedVoidBlocks(
 	const nodes = selectedBlockNodes(editor);
 	if (nodes.length === 0) return false;
 	const firstType = nodes[0].type;
-	// 图片组是容器而非 void 插件,但块选后的 Enter 语义与 void 相同。
+	// 图片组与分栏组都是容器,但块选后的 Enter 语义与 void 相同：在末尾插入新段落。
 	const isVoidLike =
 		firstType === IMAGE_GROUP_KEY ||
+		firstType === COLUMN_GROUP_KEY ||
 		Boolean(getPluginByType(editor, firstType)?.node.isVoid);
 	if (!isVoidLike) return false;
 	const lastPath = editor.api.findPath(nodes[nodes.length - 1]);
