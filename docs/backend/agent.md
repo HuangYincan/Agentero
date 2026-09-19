@@ -98,6 +98,8 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   - CI：Rust `quality` / `agentero-tests` 任务各自准备 Node 22 并执行
     `node scripts/prepare-adapters.mjs`；直接运行 Cargo 不触发 Tauri 前置命令，
     TypeScript 任务的 staging 产物也不会跨 runner 共享。`cli-tests` 不依赖这些资源。
+    Rust 任务只需 Node/npm，`setup-node` 显式关闭包管理器自动缓存，避免根据
+    `package.json` 的 `packageManager` 字段调用未安装的 pnpm。
   - 运行时（`registry/bundled.rs`）：`init` 在 app setup 时定位资源根（打包
     `Resources/adapters`；dev 回退源码树），`adapter_at` 读 manifest。解析顺序全局唯一：
     **PATH/lifecycle 安装的适配器永远优先**，`resolve_command` 命中即走原路径，miss 才回落

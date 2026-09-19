@@ -89,6 +89,7 @@ jobs:
         if: matrix.task != 'cli-tests'
         with:
           node-version: 22
+          package-manager-cache: false
       - name: Stage bundled ACP adapters
         if: matrix.task != 'cli-tests'
         run: node scripts/prepare-adapters.mjs
