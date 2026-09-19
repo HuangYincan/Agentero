@@ -129,6 +129,7 @@
 		"react-i18next": "^17.0.9",
 		"react-icons": "^5.7.0",
 		"react-resizable-panels": "^4.12.2",
+		"remark-directive": "^3.0.1",
 		"remark-emoji": "^5.0.2",
 		"remark-gfm": "^4.0.1",
 		"remark-math": "^6.0.0",
