@@ -1,6 +1,6 @@
 "use client";
 
-import { useEquationElement, useEquationInput } from "@platejs/math/react";
+import { useEquationInput } from "@platejs/math/react";
 import { CornerDownLeftIcon, RadicalIcon } from "lucide-react";
 import type { TEquationElement } from "platejs";
 import {
@@ -13,6 +13,7 @@ import {
 	useSelected,
 } from "platejs/react";
 import * as React from "react";
+import { memo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Popover,
@@ -20,17 +21,23 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/core/utils";
+import { renderKatexToElement } from "@/lib/math/katex-cache";
 
-const katexOptions = (displayMode: boolean) => ({
-	displayMode,
+const inlineKatexOptions: katex.KatexOptions = {
+	displayMode: false,
 	errorColor: "#cc0000",
 	fleqn: false,
 	leqno: false,
-	output: "htmlAndMathml" as const,
-	strict: "warn" as const,
+	output: "htmlAndMathml",
+	strict: "warn",
 	throwOnError: false,
 	trust: false,
-});
+};
+
+const displayKatexOptions: katex.KatexOptions = {
+	...inlineKatexOptions,
+	displayMode: true,
+};
 
 const Textarea = React.forwardRef<
 	HTMLTextAreaElement,
@@ -41,6 +48,22 @@ Textarea.displayName = "EquationTextarea";
 const EquationInput = createPrimitiveComponent(Textarea)({
 	propsHook: useEquationInput,
 });
+
+function useCachedEquationElement({
+	texExpression,
+	katexRef,
+	options,
+}: {
+	texExpression: string;
+	katexRef: React.RefObject<HTMLElement | null>;
+	options: katex.KatexOptions;
+}) {
+	// biome-ignore lint/correctness/useExhaustiveDependencies: katexRef is a stable DOM container; only the TeX source should trigger re-render.
+	useEffect(() => {
+		if (!katexRef.current) return;
+		renderKatexToElement(texExpression, options, katexRef.current);
+	}, [texExpression, options]);
+}
 
 function EquationPopoverContent({
 	isInline,
@@ -83,15 +106,27 @@ function EquationPopoverContent({
 	);
 }
 
-export function EquationElement(props: PlateElementProps<TEquationElement>) {
+function equationPropsEqual(
+	prev: PlateElementProps<TEquationElement>,
+	next: PlateElementProps<TEquationElement>,
+): boolean {
+	return (
+		prev.element.texExpression === next.element.texExpression &&
+		prev.element.type === next.element.type
+	);
+}
+
+export const EquationElement = memo(function EquationElement(
+	props: PlateElementProps<TEquationElement>,
+) {
 	const selected = useSelected();
 	const [open, setOpen] = React.useState(false);
 	const katexRef = React.useRef<HTMLDivElement | null>(null);
 
-	useEquationElement({
-		element: props.element,
+	useCachedEquationElement({
+		texExpression: props.element.texExpression,
 		katexRef,
-		options: katexOptions(true),
+		options: displayKatexOptions,
 	});
 
 	return (
@@ -135,19 +170,19 @@ export function EquationElement(props: PlateElementProps<TEquationElement>) {
 			{props.children}
 		</PlateElement>
 	);
-}
+}, equationPropsEqual);
 
-export function InlineEquationElement(
+export const InlineEquationElement = memo(function InlineEquationElement(
 	props: PlateElementProps<TEquationElement>,
 ) {
 	const selected = useSelected();
 	const [open, setOpen] = React.useState(false);
 	const katexRef = React.useRef<HTMLDivElement | null>(null);
 
-	useEquationElement({
-		element: props.element,
+	useCachedEquationElement({
+		texExpression: props.element.texExpression,
 		katexRef,
-		options: katexOptions(false),
+		options: inlineKatexOptions,
 	});
 
 	return (
@@ -191,4 +226,4 @@ export function InlineEquationElement(
 			{props.children}
 		</PlateElement>
 	);
-}
+}, equationPropsEqual);

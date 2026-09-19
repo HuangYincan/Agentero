@@ -2,9 +2,9 @@
  * Render a single-line title/label that may embed TeX (`$\\pi$`, `\\(...\\)`).
  * Plain strings without math delimiters stay as a text node (no KaTeX cost).
  */
-import katex from "katex";
 import { Fragment, memo, useMemo } from "react";
 import { cn } from "@/lib/core/utils";
+import { getKatexHtml } from "@/lib/math/katex-cache";
 import { hasTitleMath, parseTitleMath } from "@/lib/paper/title-math";
 
 const KATEX_OPTIONS = {
@@ -18,7 +18,7 @@ const KATEX_OPTIONS = {
 
 function renderInlineMath(tex: string): string {
 	try {
-		return katex.renderToString(tex, KATEX_OPTIONS);
+		return getKatexHtml(tex, KATEX_OPTIONS);
 	} catch {
 		// Keep the source visible when KaTeX rejects the expression.
 		return tex;
