@@ -201,7 +201,8 @@
 			"quote": "引用",
 			"codeBlock": "代码块",
 			"mermaid": "Mermaid 图表",
-			"callout": "Callout"
+			"callout": "Callout",
+			"columns": "分栏"
 		}
 	},
 	"statusBar": {

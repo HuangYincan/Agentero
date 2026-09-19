@@ -201,7 +201,8 @@
 			"quote": "Quote",
 			"codeBlock": "Code block",
 			"mermaid": "Mermaid diagram",
-			"callout": "Callout"
+			"callout": "Callout",
+			"columns": "Columns"
 		}
 	},
 	"statusBar": {

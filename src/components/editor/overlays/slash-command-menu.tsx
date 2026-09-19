@@ -2,6 +2,7 @@
 
 import {
 	Code2,
+	Columns3,
 	ExternalLink,
 	Heading1,
 	Heading2,
@@ -69,6 +70,7 @@ const COMMAND_ICONS: Record<SlashCommandId, LucideIcon> = {
 	internalLink: Link2,
 	externalLink: ExternalLink,
 	callout: MessageSquareWarning,
+	columns: Columns3,
 };
 
 export function SlashCommandMenu({
