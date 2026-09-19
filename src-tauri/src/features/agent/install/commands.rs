@@ -1,4 +1,4 @@
-use crate::core::error::{map_err, ApiResult};
+use crate::core::error::{map_err, ApiResult, AppError};
 
 use super::{
     add_shim_dir_to_user_path, cli_command_name, collect_status, ensure_cli_binary, install_shim,
@@ -9,8 +9,13 @@ use tauri::{AppHandle, Runtime};
 
 #[tauri::command]
 #[specta::specta]
-pub fn cli_install_status<R: Runtime>(app: AppHandle<R>) -> ApiResult<CliInstallStatus> {
-    ApiResult::ok(collect_status(&app))
+pub async fn cli_install_status<R: Runtime>(app: AppHandle<R>) -> ApiResult<CliInstallStatus> {
+    // `collect_status` spawns the CLI binary to read its version; on the main
+    // thread (sync command) that freezes the whole UI on every About open.
+    match tauri::async_runtime::spawn_blocking(move || collect_status(&app)).await {
+        Ok(status) => ApiResult::ok(status),
+        Err(e) => map_err(AppError::message(format!("CLI status probe failed: {e}"))),
+    }
 }
 
 #[tauri::command]
@@ -59,14 +64,20 @@ pub async fn cli_install_command<R: Runtime>(app: AppHandle<R>) -> ApiResult<Cli
 
 #[tauri::command]
 #[specta::specta]
-pub fn cli_uninstall_command<R: Runtime>(app: AppHandle<R>) -> ApiResult<CliInstallResult> {
-    let local = resolve_local_cli(&app);
+pub async fn cli_uninstall_command<R: Runtime>(app: AppHandle<R>) -> ApiResult<CliInstallResult> {
+    match tauri::async_runtime::spawn_blocking(move || run_uninstall(&app)).await {
+        Ok(Ok(result)) => ApiResult::ok(result),
+        Ok(Err(e)) => map_err(e),
+        Err(e) => map_err(AppError::message(format!("CLI uninstall failed: {e}"))),
+    }
+}
+
+/// Blocking uninstall body (shim removal + status probe) for `spawn_blocking`.
+fn run_uninstall<R: Runtime>(app: &AppHandle<R>) -> Result<CliInstallResult, AppError> {
+    let local = resolve_local_cli(app);
     let binary = local.as_ref().map(|r| r.path.as_path());
     let shim = managed_shim_path();
-    match uninstall_shim(&shim, binary) {
-        Ok(_) => {}
-        Err(e) => return map_err(e),
-    }
+    uninstall_shim(&shim, binary)?;
     // Drop download cache only (never delete dev target/ or App bundle binaries).
     let managed = managed_cli_binary();
     if managed.is_file() {
@@ -77,9 +88,9 @@ pub fn cli_uninstall_command<R: Runtime>(app: AppHandle<R>) -> ApiResult<CliInst
     if let Err(e) = remove_shim_dir_from_user_path() {
         log::warn!("cli uninstall: failed to remove shim dir from user PATH: {e}");
     }
-    let mut status = collect_status(&app);
+    let mut status = collect_status(app);
     status.message = Some("Removed the Agentero-managed CLI shim.".into());
-    ApiResult::ok(CliInstallResult {
+    Ok(CliInstallResult {
         status,
         action: "uninstall".into(),
     })

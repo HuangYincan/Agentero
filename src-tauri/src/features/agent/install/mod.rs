@@ -142,6 +142,15 @@ fn is_runnable_cli(path: &Path) -> bool {
     is_plausible_cli_file(path) && read_cli_version(path).is_some()
 }
 
+/// `is_runnable_cli` in one spawn: About status reads probe every About open,
+/// so probing the version twice per candidate doubles the block.
+fn probe_cli_version(path: &Path) -> Option<String> {
+    if !is_plausible_cli_file(path) {
+        return None;
+    }
+    read_cli_version(path)
+}
+
 /// Directory for the downloaded/managed CLI binary (outside the App bundle).
 pub(crate) fn managed_cli_dir() -> PathBuf {
     if let Some(base) = dirs::data_local_dir() {
@@ -162,12 +171,11 @@ pub(crate) fn managed_cli_binary() -> PathBuf {
 pub(crate) fn resolve_local_cli<R: Runtime>(app: &AppHandle<R>) -> Option<ResolvedCli> {
     // 1) Managed download cache (product path after Install).
     let managed = managed_cli_binary();
-    if is_runnable_cli(&managed) {
-        let version = read_cli_version(&managed);
+    if let Some(version) = probe_cli_version(&managed) {
         return Some(ResolvedCli {
             path: crate::core::fs::canonicalize_best_effort(&managed),
             source: "managed",
-            version,
+            version: Some(version),
         });
     }
 
@@ -222,12 +230,11 @@ pub(crate) fn resolve_local_cli<R: Runtime>(app: &AppHandle<R>) -> Option<Resolv
     }
 
     for (path, source) in candidates {
-        if is_runnable_cli(&path) {
-            let version = read_cli_version(&path);
+        if let Some(version) = probe_cli_version(&path) {
             return Some(ResolvedCli {
                 path: crate::core::fs::canonicalize_best_effort(&path),
                 source,
-                version,
+                version: Some(version),
             });
         }
     }
