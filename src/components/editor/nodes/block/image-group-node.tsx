@@ -8,6 +8,7 @@ import {
 	useDndNode,
 	useDropLine,
 } from "@platejs/dnd";
+import { GripVertical } from "lucide-react";
 import type { TElement } from "platejs";
 import {
 	type PlateEditor,
@@ -113,7 +114,7 @@ function ImageGroupItemDnd({
 	const editor = useEditorRef();
 	const dropNodeRef = React.useRef<HTMLDivElement | null>(null);
 
-	const { dragRef } = useDndNode({
+	const { dragRef, isDragging } = useDndNode({
 		// drag item 的 element 由 id 全树查回(useDragNode),组内 img 同样命中。
 		// 拖影统一走 BlockDragPreview 自定义层,禁用 preview 防双影。
 		element,
@@ -147,6 +148,13 @@ function ImageGroupItemDnd({
 		},
 	});
 
+	const setDragHandle = React.useCallback(
+		(node: HTMLDivElement | null) => {
+			dragRef(node);
+		},
+		[dragRef],
+	);
+
 	const { dropLine } = useDropLine({
 		id: element.id,
 		orientation: "horizontal",
@@ -155,11 +163,11 @@ function ImageGroupItemDnd({
 	return (
 		<ImageGroupItemLayout
 			ratio={ratio}
+			isDragging={isDragging}
+			dragHandleRef={setDragHandle}
 			itemRef={(node) => {
-				// useDndNode 内部已把 dropNodeRef 连接为 drop 目标,这里补挂 drag 源;
-				// 直接拖图片本体换位(TouchBackend 6px touchSlop,点按仍是选中)。
+				// useDndNode 内部已把 dropNodeRef 连接为 drop 目标。
 				dropNodeRef.current = node;
-				dragRef(node);
 			}}
 		>
 			{children}
@@ -235,10 +243,14 @@ function ImageGroupGapDropZone({
 
 function ImageGroupItemLayout({
 	ratio,
+	isDragging,
+	dragHandleRef,
 	itemRef,
 	children,
 }: {
 	ratio?: number;
+	isDragging?: boolean;
+	dragHandleRef?: (node: HTMLDivElement | null) => void;
 	itemRef?: (node: HTMLDivElement | null) => void;
 	children: React.ReactNode;
 }) {
@@ -249,7 +261,23 @@ function ImageGroupItemLayout({
 			? { aspectRatio: `${ratio}`, flex: `${ratio} 1 0%` }
 			: { flex: "1 1 0%", minHeight: "4rem" };
 	return (
-		<div className="relative m-0 min-w-[72px]" style={style} ref={itemRef}>
+		<div
+			className="group/item relative m-0 min-w-[72px]"
+			style={style}
+			ref={itemRef}
+		>
+			{dragHandleRef ? (
+				<div
+					ref={dragHandleRef}
+					className={cn(
+						"absolute -left-4 top-0 z-20 flex h-5 w-4 cursor-grab items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity",
+						"hover:bg-muted hover:text-foreground group-hover/item:opacity-100",
+						isDragging && "cursor-grabbing opacity-100",
+					)}
+				>
+					<GripVertical className="size-3" aria-hidden />
+				</div>
+			) : null}
 			{children}
 		</div>
 	);
