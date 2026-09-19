@@ -74,7 +74,13 @@ function ImageGroupItem({
 }) {
 	const editor = useEditorRef();
 	// 只读面(export/embed)没有 DndPlugin;live 只读下同样不接拖拽。
-	if (editor.dom.readOnly || !editor.plugins.dnd) {
+	// 结构收敛/卸载过程中 element 可能短暂缺失,避免把 undefined 传给 DnD hook。
+	if (
+		editor.dom.readOnly ||
+		!editor.plugins.dnd ||
+		!element?.id ||
+		!isImageBlock(editor, element)
+	) {
 		return (
 			<ImageGroupItemLayout ratio={ratio}>{children}</ImageGroupItemLayout>
 		);

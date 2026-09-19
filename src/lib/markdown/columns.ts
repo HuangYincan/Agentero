@@ -11,6 +11,7 @@ import {
 	type SlateEditor,
 	type TElement,
 } from "platejs";
+import { imageBlockType } from "@/lib/markdown/image-group";
 
 /**
  * 文档分栏容器：column_group 包含若干 column，每列是一个独立的内容容器。
@@ -291,6 +292,54 @@ export function addColumnToGroup(
 
 			editor.tf.insertNodes(newColumn([sourceNode]), {
 				at: [adjustedGroupIndex, columnCount],
+			});
+		});
+	});
+}
+
+/**
+ * 把图片组（image_group）拆分为分栏组：组内每张图各占一列。
+ * 如果源块来自组外，则把它作为最后一列追加；如果源块是组内成员，
+ * 拆分后它仍位于原顺序对应的列中。
+ */
+export function convertImageGroupToColumnGroup(
+	editor: SlateEditor,
+	groupPath: number[],
+	sourcePath?: number[],
+): void {
+	const [groupIndex] = groupPath;
+	const group = NodeApi.get(editor, groupPath) as TElement;
+	const imgType = imageBlockType(editor);
+	const images = (group.children as TElement[]).filter(
+		(child) => child.type === imgType,
+	);
+	if (images.length === 0) return;
+
+	editor.tf.withoutNormalizing(() => {
+		editor.tf.withoutSaving(() => {
+			// 源块来自组外时，先移除并作为新列追加。
+			let appended: TElement | undefined;
+			let finalGroupIndex = groupIndex;
+			if (
+				sourcePath &&
+				!(sourcePath.length > 1 && sourcePath[0] === groupIndex)
+			) {
+				appended = NodeApi.get(editor, sourcePath) as TElement;
+				editor.tf.removeNodes({ at: sourcePath });
+				if (sourcePath.length === 1 && sourcePath[0] < groupIndex) {
+					finalGroupIndex -= 1;
+				}
+			}
+
+			editor.tf.removeNodes({ at: [finalGroupIndex] });
+
+			const columns = images.map((img) => newColumn([img]));
+			if (appended) {
+				columns.push(newColumn([appended]));
+			}
+
+			editor.tf.insertNodes(newColumnGroup(columns), {
+				at: [finalGroupIndex],
 			});
 		});
 	});

@@ -12,10 +12,12 @@ import {
 	COLUMN_GROUP_KEY,
 	COLUMN_KEY,
 	columnsRules,
+	convertImageGroupToColumnGroup,
 	createColumnGroupFromBlocks,
 	MAX_COLUMNS,
 	remarkColumns,
 } from "@/lib/markdown/columns";
+import { IMAGE_GROUP_KEY } from "@/lib/markdown/image-group";
 
 const TestParagraphPlugin = createSlatePlugin({
 	key: KEYS.p,
@@ -291,5 +293,48 @@ describe("column transforms", () => {
 			(n) => (n as { type?: string }).type === COLUMN_GROUP_KEY,
 		) as { children?: unknown[] } | undefined;
 		expect(group?.children).toHaveLength(MAX_COLUMNS);
+	});
+
+	it("converts an image group into a column group with each image as a column", () => {
+		const editor = createNormalizeEditor([
+			{
+				type: IMAGE_GROUP_KEY,
+				children: [imageEl("a.png"), imageEl("b.png"), imageEl("c.png")],
+			},
+		]);
+		convertImageGroupToColumnGroup(editor, [0]);
+		editor.tf.normalize({ force: true });
+
+		const group = editor.children[0] as {
+			type?: string;
+			children?: { children?: { url?: string }[] }[];
+		};
+		expect(group.type).toBe(COLUMN_GROUP_KEY);
+		expect(group.children?.map((c) => c.children?.[0]?.url)).toEqual([
+			"a.png",
+			"b.png",
+			"c.png",
+		]);
+	});
+
+	it("appends an external image when converting an image group to columns", () => {
+		const editor = createNormalizeEditor([
+			{
+				type: IMAGE_GROUP_KEY,
+				children: [imageEl("a.png"), imageEl("b.png")],
+			},
+			imageEl("c.png"),
+		]);
+		convertImageGroupToColumnGroup(editor, [0], [1]);
+		editor.tf.normalize({ force: true });
+
+		const group = editor.children[0] as {
+			children?: { children?: { url?: string }[] }[];
+		};
+		expect(group.children?.map((c) => c.children?.[0]?.url)).toEqual([
+			"a.png",
+			"b.png",
+			"c.png",
+		]);
 	});
 });

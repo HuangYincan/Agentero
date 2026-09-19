@@ -35,10 +35,11 @@ import { isBlankParagraph } from "@/lib/markdown/block-selection";
 import {
 	addColumnToGroup,
 	COLUMN_GROUP_KEY,
+	convertImageGroupToColumnGroup,
 	createColumnGroupFromBlocks,
 	MAX_COLUMNS,
 } from "@/lib/markdown/columns";
-import { isImageishType } from "@/lib/markdown/image-group";
+import { IMAGE_GROUP_KEY, isImageishType } from "@/lib/markdown/image-group";
 
 /**
  * Mirrors the two global drag/marquee flags onto the editable root as data
@@ -436,6 +437,8 @@ function handleColumnDrop(
 
 	if (targetElement.type === COLUMN_GROUP_KEY) {
 		addColumnToGroup(editor, targetPath, sourcePath);
+	} else if (targetElement.type === IMAGE_GROUP_KEY) {
+		convertImageGroupToColumnGroup(editor, targetPath, sourcePath);
 	} else {
 		createColumnGroupFromBlocks(editor, targetPath, sourcePath);
 	}
