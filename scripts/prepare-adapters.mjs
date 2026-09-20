@@ -23,7 +23,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const NPM_BIN = process.platform === "win32" ? "npm.cmd" : "npm";
+const NPM_BIN = process.platform === "win32" ? "npm" : "npm";
+const NPM_OPTS = process.platform === "win32" ? { shell: true } : {};
 
 const ADAPTERS = [
 	{
@@ -144,7 +145,7 @@ try {
 			"--no-fund",
 			"--loglevel=error",
 		],
-		{ cwd: tmp, stdio: "inherit" },
+		{ cwd: tmp, stdio: "inherit", ...NPM_OPTS },
 	);
 
 	for (const adapter of ADAPTERS) {
