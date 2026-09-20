@@ -61,7 +61,7 @@ struct PaperListArgs {
     unread: bool,
     #[serde(default)]
     limit: Option<u32>,
-    /// Extra fields on top of id/path/title (e.g. year, tags, authors, isRead).
+    /// Extra fields on top of id/path/title (e.g. year, date, tags, authors, isRead).
     #[serde(default)]
     fields: Vec<String>,
     /// Emit the previous full metadata row shape.
@@ -192,7 +192,7 @@ fn clamp_limit(raw: Option<u32>) -> usize {
 #[tool_router]
 impl AgenteroMcp {
     #[tool(
-        description = "List papers in the open vault. Default rows are only id/path/title (token-cheap). Pass fields (year, tags, authors, isRead, …) or full=true for more. Abstract is only on paper_get."
+        description = "List papers in the open vault. Default rows are only id/path/title (token-cheap). Pass fields (year, date, tags, authors, isRead, …) or full=true for more. Abstract is only on paper_get."
     )]
     async fn paper_list(
         &self,

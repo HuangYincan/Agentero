@@ -20,8 +20,8 @@
 
 | 能力 | 说明 |
 |---|---|
-| 排序 | 表头点击；排序/标签筛选变化时行区 150ms 淡入提示重排（搜索键入不触发） |
-| 列 | 表头右键选列 / 拖拽排序；顺序+显隐持久化 `libraryColumns`；标题列不可隐藏；标题单元格对 `$...$` / `\\(...\\)` 做 KaTeX 内联渲染（复制仍为原始 TeX） |
+| 排序 | 表头点击；日期 / 被引数默认新→旧（高→低），文本列升序。日期列按 `YYYYMMDD` 数值键排序，未披露的月/日补 `0`（年份粒度排在该年已披露日期之前），无日期无年份的行排最后（降序）；排序/标签筛选变化时行区 150ms 淡入提示重排（搜索键入不触发） |
+| 列 | 表头右键选列 / 拖拽排序；顺序+显隐持久化 `libraryColumns`；标题列不可隐藏；标题单元格对 `$...$` / `\\(...\\)` 做 KaTeX 内联渲染（复制仍为原始 TeX）。日期列显示 `YYYY` / `YYYY-MM` / `YYYY-MM-DD`（精度随元数据），无 `date` 时回退 `year`；旧设置里的 `year` 列键在加载时原地改名为 `date` |
 | 滚动 | 横向 + 纵向；滚动中表头控件瞬间隐藏为纯列名（搜索框与刷新/筛选等图标，固定 `h-9` 行高与占位不变；当前排序列仍保留方向箭头；有标签筛选时 Tags 列名旁留小圆点），停滚约 450ms 后淡入恢复（入 300ms） |
 | tags | 染色 chip；搜索框匹配用户标签子串；`@zotero:` / `@arxiv:` 内部标签不显示 |
 | 阅读热力 | 标题列左侧显示该论文阅读进度热力条；基于 `marks/` 中逐页标注与阅读位置聚合。激活 Library 时经 `paper_reading_activity_batch` 一次批量 IPC 刷新全部活动点（缓存保温，不再逐论文 3 次 IPC）；PDF 页数走 catalog `pdf_page_counts` 缓存，缺缓存时仅对可视行懒加载并回写 |
@@ -49,7 +49,7 @@
 - Library 表格行右键"编辑元数据"；
 - 文件树论文行右键"编辑元数据"。
 
-核心字段（标题/作者/年份/DOI/arXiv/期刊）直接展示，卷期页、出版社、摘要、URL 折叠在"更多字段"。作者每行一位；仅提交变更字段（patch）→ `paper_update_meta` → 返回行原地同步 Library 表与所有打开 tab（`paperMetaChange`）。远程 Vault 暂不支持，入口隐藏。后端语义见 [../backend/catalog.md](../backend/catalog.md)。
+核心字段（标题/作者/日期/DOI/arXiv/期刊）直接展示，卷期页、出版社、摘要、URL 折叠在"更多字段"。作者每行一位；日期接受 `YYYY` / `YYYY-MM` / `YYYY-MM-DD`（也容忍 `2017-06-12T00:00:00Z`、`Spring 2017` 这类松散串，由 Host 规范化），年份由日期派生；仅提交变更字段（patch）→ `paper_update_meta` → 返回行原地同步 Library 表与所有打开 tab（`paperMetaChange`）。远程 Vault 暂不支持，入口隐藏。后端语义见 [../backend/catalog.md](../backend/catalog.md)。
 
 DOI 旁有 **刷新** 按钮：按当前 DOI（或 arXiv ID）拉取权威元数据（`paper_resolve_identifier` → Translator/Crossref/arXiv Atom，再用 S2 `publicationVenue` 补期刊/会议名），只填充表单供确认，保存仍走 patch。venue 源优先级见 [../backend/academic-search-apis.md](../backend/academic-search-apis.md) §2.5。
 
@@ -57,7 +57,7 @@ DOI 旁有 **刷新** 按钮：按当前 DOI（或 arXiv ID）拉取权威元数
 
 拖入/魔棒导入 PDF 直接进入后台导入任务，无确认对话框；识别链路（liteparse probe → Zotero recognizer → 标识符解析，见 [../backend/paper-import.md](../backend/paper-import.md)）在导入任务内自动补全：
 
-- 识别成功自动填充 标题/作者/年份/DOI/arXiv ID，文件夹 id 按 arXiv ID → DOI slug → 文件名 slug 自动派生；
+- 识别成功自动填充 标题/作者/日期/DOI/arXiv ID，文件夹 id 按 arXiv ID → DOI slug → 文件名 slug 自动派生；
 - 识别失败静默回退文件名派生元数据，用户在 Edit Metadata 中修正（DOI 旁刷新按钮拉取权威元数据）。
 
 ## 代码

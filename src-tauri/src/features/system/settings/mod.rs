@@ -398,7 +398,15 @@ fn default_auto_update_internal_links() -> String {
     "ask".into()
 }
 /// Canonical papers-Library column keys, in default order.
-const LIBRARY_COLUMN_KEYS: &[&str] = &["title", "authors", "year", "tags", "type", "id"];
+const LIBRARY_COLUMN_KEYS: &[&str] = &[
+    "title",
+    "authors",
+    "date",
+    "publication",
+    "tags",
+    "id",
+    "citations",
+];
 fn default_library_columns() -> Vec<LibraryColumnPref> {
     LIBRARY_COLUMN_KEYS
         .iter()
@@ -983,14 +991,23 @@ fn normalize(s: &mut AppSettings) {
     let mut seen: Vec<String> = Vec::new();
     let mut cols: Vec<LibraryColumnPref> = Vec::new();
     for col in s.library_columns.drain(..) {
-        if !LIBRARY_COLUMN_KEYS.contains(&col.key.as_str()) {
+        // `year` became a full publication date; keep the saved position.
+        let key = if col.key == "year" {
+            "date".to_string()
+        } else {
+            col.key
+        };
+        if !LIBRARY_COLUMN_KEYS.contains(&key.as_str()) {
             continue;
         }
-        if seen.iter().any(|k| k == &col.key) {
+        if seen.iter().any(|k| k == &key) {
             continue;
         }
-        seen.push(col.key.clone());
-        cols.push(col);
+        seen.push(key.clone());
+        cols.push(LibraryColumnPref {
+            key,
+            visible: col.visible,
+        });
     }
     for &key in LIBRARY_COLUMN_KEYS {
         if !seen.iter().any(|k| k == key) {
@@ -1543,14 +1560,25 @@ mod tests {
         };
         normalize(&mut s);
         let keys: Vec<&str> = s.library_columns.iter().map(|c| c.key.as_str()).collect();
-        // Unknown dropped; kept order first, then missing canonical columns appended.
-        assert_eq!(keys, vec!["title", "year", "authors", "tags", "type", "id"]);
+        // Unknown dropped; `year` renamed in place; missing columns appended.
+        assert_eq!(
+            keys,
+            vec![
+                "title",
+                "date",
+                "authors",
+                "publication",
+                "tags",
+                "id",
+                "citations"
+            ]
+        );
         // Title forced visible even though stored hidden.
         let title = s.library_columns.iter().find(|c| c.key == "title").unwrap();
         assert!(title.visible);
-        // Non-title hidden preference preserved.
-        let year = s.library_columns.iter().find(|c| c.key == "year").unwrap();
-        assert!(!year.visible);
+        // Non-title hidden preference preserved through the rename.
+        let date = s.library_columns.iter().find(|c| c.key == "date").unwrap();
+        assert!(!date.visible);
         // Appended column defaults to visible.
         let authors = s
             .library_columns

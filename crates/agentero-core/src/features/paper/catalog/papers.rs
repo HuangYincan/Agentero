@@ -255,8 +255,10 @@ pub struct PaperRecord {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[specta(type = Option<crate::json::Json>)]
     pub creators: Option<serde_json::Value>,
+    /// Publication year, kept for citation keys / tree labels.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub year: Option<i32>,
+    /// Publication date at source precision: `YYYY`, `YYYY-MM` or `YYYY-MM-DD`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub date: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", rename = "abstract")]
@@ -862,6 +864,84 @@ fn minimal_record_for(dir: &Path, rel_path: &str) -> PaperRecord {
     record
 }
 
+/// Publication date at the precision its source provided.
+struct PublicationDate {
+    year: i32,
+    month: Option<u32>,
+    day: Option<u32>,
+}
+
+impl PublicationDate {
+    /// Zero-padded `YYYY` / `YYYY-MM` / `YYYY-MM-DD`.
+    fn canonical(&self) -> String {
+        match (self.month, self.day) {
+            (Some(month), Some(day)) => format!("{:04}-{:02}-{:02}", self.year, month, day),
+            (Some(month), None) => format!("{:04}-{:02}", self.year, month),
+            _ => format!("{:04}", self.year),
+        }
+    }
+}
+
+const DATE_SEPARATORS: &[char] = &['-', '/', '.', ' '];
+
+/// `(value, index after it)` for up to two digits behind a separator.
+fn number_after_separator(chars: &[char], at: usize) -> Option<(u32, usize)> {
+    if !chars.get(at).is_some_and(|c| DATE_SEPARATORS.contains(c)) {
+        return None;
+    }
+    let mut end = at + 1;
+    while end < chars.len() && end < at + 3 && chars[end].is_ascii_digit() {
+        end += 1;
+    }
+    let digits: String = chars[at + 1..end].iter().collect();
+    digits.parse().ok().map(|value| (value, end))
+}
+
+/// Lenient partial-date parse: the first standalone 4-digit year in
+/// `1000..=2100` wins, so `Spring 2017` and `2017-06-12T00:00:00Z` both yield a
+/// usable date. A month/day behind a separator must be a real calendar value.
+fn parse_publication_date(text: &str) -> Option<PublicationDate> {
+    let chars: Vec<char> = text.trim().chars().collect();
+    let mut year_at = None;
+    for i in 0..chars.len().saturating_sub(3) {
+        if !chars[i..i + 4].iter().all(char::is_ascii_digit) {
+            continue;
+        }
+        if i > 0 && chars[i - 1].is_ascii_digit() {
+            continue;
+        }
+        if chars.get(i + 4).is_some_and(char::is_ascii_digit) {
+            continue;
+        }
+        let digits: String = chars[i..i + 4].iter().collect();
+        let year: i32 = digits.parse().ok()?;
+        if (1000..=2100).contains(&year) {
+            year_at = Some((year, i + 4));
+            break;
+        }
+    }
+    let (year, after_year) = year_at?;
+
+    let mut month = None;
+    let mut day = None;
+    if let Some((value, next)) = number_after_separator(&chars, after_year) {
+        if !(1..=12).contains(&value) {
+            return None;
+        }
+        month = Some(value);
+        if let Some((value, _)) = number_after_separator(&chars, next) {
+            if !(1..=31).contains(&value) {
+                return None;
+            }
+            day = Some(value);
+        }
+    }
+    if let (Some(month), Some(day)) = (month, day) {
+        chrono::NaiveDate::from_ymd_opt(year, month, day)?;
+    }
+    Some(PublicationDate { year, month, day })
+}
+
 /// Manual metadata patch: `None` keeps the current value; a provided value is
 /// trimmed and an empty string clears the column (stored as NULL).
 #[derive(Debug, Default, Clone, Deserialize, specta::Type)]
@@ -869,8 +949,9 @@ fn minimal_record_for(dir: &Path, rel_path: &str) -> PaperRecord {
 pub struct PaperMetaPatch {
     pub title: Option<String>,
     pub authors: Option<Vec<String>>,
-    /// Year as text so an empty string can clear it; validated as 1000..=2100.
-    pub year: Option<String>,
+    /// Publication date as text — `YYYY`, `YYYY-MM` or `YYYY-MM-DD` — so an
+    /// empty string can clear it. `year` is derived from it.
+    pub date: Option<String>,
     pub doi: Option<String>,
     pub arxiv_id: Option<String>,
     pub publication: Option<String>,
@@ -921,19 +1002,22 @@ pub fn update_meta(
             .filter(|a| !a.is_empty())
             .collect();
     }
-    if let Some(year) = patch.year.as_deref() {
-        row.year = match norm(year) {
-            None => None,
-            Some(text) => {
-                let parsed: i32 = text
-                    .parse()
-                    .map_err(|_| AppError::message("year must be a number"))?;
-                if !(1000..=2100).contains(&parsed) {
-                    return Err(AppError::message("year must be between 1000 and 2100"));
-                }
-                Some(parsed)
+    if let Some(date) = patch.date.as_deref() {
+        match norm(date) {
+            None => {
+                row.date = None;
+                row.year = None;
             }
-        };
+            Some(text) => {
+                let parsed = parse_publication_date(&text).ok_or_else(|| {
+                    AppError::message(
+                        "date must be a year (YYYY), year-month (YYYY-MM) or full date (YYYY-MM-DD)",
+                    )
+                })?;
+                row.year = Some(parsed.year);
+                row.date = Some(parsed.canonical());
+            }
+        }
     }
     if let Some(v) = patch.doi.as_deref() {
         row.doi = norm(v);
@@ -1548,7 +1632,7 @@ mod tests {
             &PaperMetaPatch {
                 title: Some("New Title".into()),
                 authors: Some(vec![" A ".into(), "".into(), "B".into()]),
-                year: Some("2024".into()),
+                date: Some("2024-06-12".into()),
                 publication: Some("NeurIPS".into()),
                 ..Default::default()
             },
@@ -1556,6 +1640,8 @@ mod tests {
         .unwrap();
         assert_eq!(row.title, "New Title");
         assert_eq!(row.authors, vec!["A".to_string(), "B".to_string()]);
+        assert_eq!(row.date.as_deref(), Some("2024-06-12"));
+        // `year` is derived from the date.
         assert_eq!(row.year, Some(2024));
         assert_eq!(row.publication.as_deref(), Some("NeurIPS"));
         assert_eq!(row.doi.as_deref(), Some("10.1/old")); // untouched
@@ -1566,18 +1652,42 @@ mod tests {
         assert!(notes.contains("Old Title"));
         assert!(notes.contains("New Title"));
 
-        // Empty string clears a column; empty year clears year.
+        // Partial precision is kept as typed (padded); ISO timestamps accepted.
+        let row = update_meta(
+            &dir,
+            "papers/x",
+            &PaperMetaPatch {
+                date: Some(" 2019-7 ".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(row.date.as_deref(), Some("2019-07"));
+        assert_eq!(row.year, Some(2019));
+        let row = update_meta(
+            &dir,
+            "papers/x",
+            &PaperMetaPatch {
+                date: Some("2017-06-12T00:00:00Z".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(row.date.as_deref(), Some("2017-06-12"));
+
+        // Empty string clears a column; empty date clears date and year.
         let row = update_meta(
             &dir,
             "papers/x",
             &PaperMetaPatch {
                 doi: Some("  ".into()),
-                year: Some("".into()),
+                date: Some("".into()),
                 ..Default::default()
             },
         )
         .unwrap();
         assert_eq!(row.doi, None);
+        assert_eq!(row.date, None);
         assert_eq!(row.year, None);
 
         // Validation errors.
@@ -1590,15 +1700,20 @@ mod tests {
             },
         )
         .is_err());
-        assert!(update_meta(
-            &dir,
-            "papers/x",
-            &PaperMetaPatch {
-                year: Some("99".into()),
-                ..Default::default()
-            },
-        )
-        .is_err());
+        for bad in ["99", "n.d.", "2024-13", "2024-02-30", "12000"] {
+            assert!(
+                update_meta(
+                    &dir,
+                    "papers/x",
+                    &PaperMetaPatch {
+                        date: Some(bad.into()),
+                        ..Default::default()
+                    },
+                )
+                .is_err(),
+                "{bad} should be rejected"
+            );
+        }
         assert!(update_meta(&dir, "papers/missing", &PaperMetaPatch::default()).is_err());
 
         let _ = fs::remove_dir_all(&dir);

@@ -1310,7 +1310,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 }
 ```
 
-- **返回**：`{ ok: true; data: PaperListRow[] }`。`PaperListRow` = 扁平展开的 `PaperRecord`（`path`、`title`、`authors`、`year`、`type`、标识符与远程 URL 等）+ 列表专用的 `has_pdf`（对 `papers/<id>/` 的本地 PDF 探测）。前端 `PaperLibraryRow` 由此派生；`remote_paper_list` 返回裸 `PaperRecord`，故远程行的 `has_pdf` 为 `undefined`（"未探测"，不是"没有 PDF"）。
+- **返回**：`{ ok: true; data: PaperListRow[] }`。`PaperListRow` = 扁平展开的 `PaperRecord`（`path`、`title`、`authors`、`date`/`year`、`type`、标识符与远程 URL 等）+ 列表专用的 `has_pdf`（对 `papers/<id>/` 的本地 PDF 探测）。前端 `PaperLibraryRow` 由此派生；`remote_paper_list` 返回裸 `PaperRecord`，故远程行的 `has_pdf` 为 `undefined`（"未探测"，不是"没有 PDF"）。
 - **前端**：`src/lib/paper/api.ts` → `listPapers`；UI 侧本地表头排序（不经由本命令传 sort 参数）。
 - **说明**：当前无 filter/pagination；扩展筛选/FTS 仍可用规划契约 `paper:list`（见下）。
 

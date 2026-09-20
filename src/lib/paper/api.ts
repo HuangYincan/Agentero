@@ -378,7 +378,7 @@ export async function setPaperTags(
 export type PaperMetaPatch = {
 	title?: string;
 	authors?: string[];
-	year?: string;
+	date?: string;
 	doi?: string;
 	arxivId?: string;
 	publication?: string;
@@ -414,7 +414,7 @@ export async function updatePaperMeta(
 	const wirePatch: PaperMetaPatchWire = {
 		title: patch.title ?? null,
 		authors: patch.authors ?? null,
-		year: patch.year ?? null,
+		date: patch.date ?? null,
 		doi: patch.doi ?? null,
 		arxivId: patch.arxivId ?? null,
 		publication: patch.publication ?? null,

@@ -290,14 +290,18 @@ fn list(
     let table_rows: Vec<Vec<String>> = rows
         .iter()
         .map(|r| {
-            let year = r.year.map(|y| y.to_string()).unwrap_or_else(|| "-".into());
+            let date = r
+                .date
+                .clone()
+                .or_else(|| r.year.map(|y| y.to_string()))
+                .unwrap_or_else(|| "-".into());
             let tags =
                 style.tags_join(r.tags.iter().map(|t| (t.name.as_str(), t.color.as_deref())));
             vec![
                 style.path(&truncate_chars(&r.path, 40)),
                 style.id(&truncate_chars(&r.id, 16)),
                 style.title(&truncate_chars(&r.title, 48)),
-                style.dim(&year),
+                style.dim(&date),
                 tags,
                 style.read_status(r.is_read),
             ]
@@ -308,7 +312,7 @@ fn list(
     } else {
         format_table(
             style,
-            &["PATH", "ID", "TITLE", "YEAR", "TAGS", "STATUS"],
+            &["PATH", "ID", "TITLE", "DATE", "TAGS", "STATUS"],
             &table_rows,
         )
     };
@@ -464,9 +468,10 @@ fn get(globals: &GlobalOpts, ref_: &str, include_all: bool) -> Result<Value, Cli
             .iter()
             .map(|t| (t.name.as_str(), t.color.as_deref())),
     );
-    let year = paper
-        .year
-        .map(|y| y.to_string())
+    let date = paper
+        .date
+        .clone()
+        .or_else(|| paper.year.map(|y| y.to_string()))
         .unwrap_or_else(|| "-".into());
     let asset_bits = [
         ("pdf", data.assets.pdf),
@@ -492,8 +497,8 @@ fn get(globals: &GlobalOpts, ref_: &str, include_all: bool) -> Result<Value, Cli
             "{} {}  {} {}  {} {}  {} {}",
             style.key("id"),
             style.id(&paper.id),
-            style.key("year"),
-            style.dim(&year),
+            style.key("date"),
+            style.dim(&date),
             style.key("status"),
             style.read_status(paper.is_read),
             style.key("tags"),

@@ -17,6 +17,7 @@
 - 主键：论文 `path`（Vault 相对路径）
 - 字段以 `crates/agentero-core/src/features/paper/catalog/schema.rs` 为准（当前 schema v7）
 - **单一模型**：`papers.rs::PaperRecord` 同时是 catalog 行、`papers/<id>/metadata.json` sidecar 投影与 IPC 出参（前端 `PaperMetadata` 只是其生成类型的派生别名）。构造走 `PaperRecord::local_pdf(id, title)`（`path` 故意为空），入库管线分配到文件夹后用 `at_path(rel)` 绑定；`upsert_conn` 归一化 `\` → `/` 并**拒绝空 `path`**，避免写出 `path = ''` 主键或把 sidecar 落到 Vault 根（#181）
+- **`date` / `year`**：发表时间以 `date`（TEXT）为准，精度随来源——`YYYY`、`YYYY-MM` 或 `YYYY-MM-DD`（arXiv/alphaXiv/bioRxiv 给全日期；Crossref 取 `issued`→`published-online`→`published-print` 的 date-parts，PubMed 取首个 `PubDate` 的 Year/Month/Day）。`year` 是派生列，由 `date` 的前四位重算，供引用键、树标签与既有消费者使用；`paper_update_meta` 只接受 `date`，清空它同时清空 `year`
 - **sidecar 形状**：`metadata.json` = `PaperRecord` 的 pretty JSON（snake_case，`abstract` / `type` 经 serde rename）。读回时 `path` 一律取盘上位置（sidecar 随文件夹移动，内嵌值可能过期）；容忍 Connector 时代的旧文件（无 `path`、tags 为裸字符串）
 - **`type` 列 = `PaperKind` 枚举**：`arxiv` / `pdf` / `html` / `doi` / `other`（全小写序列化，与前端 union 一致）。读侧归一化：历史 `'article'` → `Doi`，任何未识别值 → `Other`；**没有 schema migration**，下次 upsert 自然写回规范拼写。`From<&str>` / `FromSql` / `Deserialize` 三条读路径共用同一归一化，因此不会因脏值整行解析失败
 - **`status` 列 = 导入状态**，词表 `pending` / `importing` / `completed` / `failed`；已读与否由 `is_read` 专管（不要把阅读状态写进 `status`）。当前所有生产者都写 `completed`。Rust 侧仍是 `String`，前端靠 union 窄化维持类型安全；旧库遗留的 `status = 'unread'` 行**未**在读侧 heal（对比 `'article'`），因为前端目前不 switch `status`，无实际后果
@@ -39,7 +40,7 @@
 |---|---|
 | `paper_list` / `paper_get` | 读 |
 | `paper_set_tags` / `paper_set_is_read` | 写 |
-| `paper_update_meta` | 手动编辑元数据（patch 语义：只更新传入字段，空串清空；置 `meta_source=manual`；改标题时同步 NOTES.md：合并 aliases 旧+新标题，占位 H1 替换为新标题，用户自拟标题保留）。远程 Vault 暂不支持 |
+| `paper_update_meta` | 手动编辑元数据（patch 语义：只更新传入字段，空串清空；置 `meta_source=manual`；改标题时同步 NOTES.md：合并 aliases 旧+新标题，占位 H1 替换为新标题，用户自拟标题保留）。时间字段传 `date`：接受 `YYYY` / `YYYY-MM` / `YYYY-MM-DD`（兼容 `2017-06-12T00:00:00Z`、`Spring 2017` 等松散串），规范化后写回并派生 `year`；无法解析则报错。远程 Vault 暂不支持 |
 | `paper_rescan` | 盘 → 库 |
 | `paper_export` / `paper_import` | Bib 等 |
 | `paper_page_counts` / `paper_set_page_counts` | 页数缓存读写 |

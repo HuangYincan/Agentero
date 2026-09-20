@@ -84,7 +84,7 @@ impl SemanticScholarApi {
     /// trait, so it is exposed as an inherent method.
     pub async fn search_match(&self, title: &str) -> Result<Option<ApiPaper>, ApiError> {
         let url = format!(
-            "{API_BASE}/paper/search/match?query={}&fields=title,authors,year,venue,publicationVenue,journal,externalIds,citationCount,url",
+            "{API_BASE}/paper/search/match?query={}&fields=title,authors,year,publicationDate,venue,publicationVenue,journal,externalIds,citationCount,url",
             urlencoding::encode(title)
         );
         let value = client::get_json(&url).await?;
@@ -111,12 +111,12 @@ async fn fetch_by_id(paper_id: &str) -> Result<ApiPaper, ApiError> {
     let (prefix, rest) = paper_id.split_once(':').unwrap_or(("", paper_id));
     let url = if prefix.is_empty() {
         format!(
-            "{API_BASE}/paper/{}?fields=title,authors,year,venue,publicationVenue,journal,externalIds,citationCount,url",
+            "{API_BASE}/paper/{}?fields=title,authors,year,publicationDate,venue,publicationVenue,journal,externalIds,citationCount,url",
             urlencoding::encode(paper_id)
         )
     } else {
         format!(
-            "{API_BASE}/paper/{}:{}?fields=title,authors,year,venue,publicationVenue,journal,externalIds,citationCount,url",
+            "{API_BASE}/paper/{}:{}?fields=title,authors,year,publicationDate,venue,publicationVenue,journal,externalIds,citationCount,url",
             prefix,
             urlencoding::encode(rest)
         )
@@ -127,7 +127,7 @@ async fn fetch_by_id(paper_id: &str) -> Result<ApiPaper, ApiError> {
 
 async fn search_by_title(title: &str, limit: usize) -> Result<Vec<ApiPaper>, ApiError> {
     let url = format!(
-        "{API_BASE}/paper/search?query={}&limit={}&fields=title,authors,year,venue,publicationVenue,journal,externalIds,citationCount,url",
+        "{API_BASE}/paper/search?query={}&limit={}&fields=title,authors,year,publicationDate,venue,publicationVenue,journal,externalIds,citationCount,url",
         urlencoding::encode(title),
         (limit * 4).min(100)
     );
@@ -169,6 +169,7 @@ fn map_paper(item: &Value) -> Option<ApiPaper> {
         .unwrap_or_default();
 
     let year = item.get("year").and_then(|v| v.as_i64()).map(|y| y as i32);
+    let date = str_field(item, "publicationDate").or_else(|| year.map(|y| format!("{y:04}")));
     let venue = venue_from_paper(item);
 
     Some(ApiPaper {
@@ -181,7 +182,7 @@ fn map_paper(item: &Value) -> Option<ApiPaper> {
         title,
         authors,
         year,
-        date: year.map(|y| y.to_string()),
+        date,
         venue,
         volume: None,
         issue: None,

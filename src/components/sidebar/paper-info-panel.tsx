@@ -42,6 +42,7 @@ import { cn } from "@/lib/core/utils";
 import type { PaperMetadata } from "@/lib/paper";
 import { arxivUrls } from "@/lib/paper/arxiv";
 import { setEditMetaDraft } from "@/lib/paper/library-store";
+import { publicationDateText } from "@/lib/paper/publication-date";
 import {
 	coercePaperTags,
 	isVisiblePaperTag,
@@ -637,9 +638,9 @@ export function PaperInfoPanel({
 									/>
 								</MetaRow>
 							) : null}
-							{meta.year ? (
-								<MetaRow icon={Calendar} label={t("paperInfo.year")}>
-									{meta.year}
+							{publicationDateText(meta) ? (
+								<MetaRow icon={Calendar} label={t("paperInfo.date")}>
+									{publicationDateText(meta)}
 								</MetaRow>
 							) : null}
 							<MetaRow icon={Library} label={t("paperInfo.publication")}>

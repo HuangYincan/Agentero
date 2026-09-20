@@ -35,7 +35,7 @@ export type LocalePreference = "system" | "en" | "zh-CN";
 export type LibraryColumnKey =
 	| "title"
 	| "authors"
-	| "year"
+	| "date"
 	| "publication"
 	| "tags"
 	| "id"
@@ -51,7 +51,7 @@ export type LibraryColumnPref = {
 export const LIBRARY_COLUMN_KEYS: LibraryColumnKey[] = [
 	"title",
 	"authors",
-	"year",
+	"date",
 	"publication",
 	"tags",
 	"id",

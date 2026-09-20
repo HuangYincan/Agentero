@@ -386,8 +386,8 @@ catalog **schema v2** 起补齐期刊/卷期页等字段（见 [`catalog.md`](ca
 | `title` | `title` | 必填；缺失则失败 |
 | `authors` | `creators[]` → 展示串 | `firstName`+`lastName` 或 `name`；优先 `creatorType=author` |
 | `creators_json` | `creators` 原数组 | 保留角色（author/editor…），JSON 文本 |
-| `year` | 自 `date` 解析四位年 | |
-| `date` | `date` | 原始日期串（如 `2017-06-12`） |
+| `year` | 自 `date` 解析四位年 | 派生字段：手动编辑只传 `date`，`year` 由 Host 重算 |
+| `date` | `date` | 发表日期，规范化 `YYYY` / `YYYY-MM` / `YYYY-MM-DD`（精度随来源，如 `2017-06-12`） |
 | `abstract` | `abstractNote` | |
 | `summary` | 截断 `abstractNote` 或 Translator 短摘要 | 可选 |
 | `doi` | `DOI` | |

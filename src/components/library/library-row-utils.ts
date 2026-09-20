@@ -5,6 +5,7 @@
  */
 import type { ReactNode } from "react";
 import type { PaperLibraryRow, PaperMetadata } from "@/lib/paper";
+import { publicationDateSortKey } from "@/lib/paper/publication-date";
 import type { ReadingHeatmap } from "@/lib/paper/reading-heatmap";
 import { type PaperTag, visiblePaperTags } from "@/lib/paper/tags";
 import type { LibraryColumnKey, LibraryColumnPref } from "@/lib/settings";
@@ -55,7 +56,7 @@ export function buildPaperRow(p: PaperLibraryRow): PaperRow {
 		sort: {
 			title: (p.title ?? "").toLocaleLowerCase(),
 			authors: (p.authors?.[0] ?? "").toLocaleLowerCase(),
-			year: p.year ?? Number.NEGATIVE_INFINITY,
+			date: publicationDateSortKey(p) ?? Number.NEGATIVE_INFINITY,
 			publication: (p.publication ?? "").toLocaleLowerCase(),
 			id: id.toLocaleLowerCase(),
 			tags: tags

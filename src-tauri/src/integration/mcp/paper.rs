@@ -13,6 +13,7 @@ const TAG_COLORS: &[&str] = &[
 const PAPER_LIST_EXTRA_FIELDS: &[&str] = &[
     "authors",
     "year",
+    "date",
     "tags",
     "doi",
     "arxivId",
@@ -90,6 +91,9 @@ pub struct PaperListItem {
     pub authors: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub year: Option<i32>,
+    /// Publication date, `YYYY` / `YYYY-MM` / `YYYY-MM-DD` by precision.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -112,6 +116,7 @@ impl PaperListItem {
             title: row.title.clone(),
             authors: None,
             year: None,
+            date: None,
             tags: None,
             doi: None,
             arxiv_id: None,
@@ -128,6 +133,7 @@ impl PaperListItem {
             title: row.title.clone(),
             authors: Some(row.authors.clone()),
             year: row.year,
+            date: row.date.clone(),
             tags: Some(row.tags.iter().map(|t| t.name.clone()).collect()),
             doi: row.doi.clone(),
             arxiv_id: row.arxiv_id.clone(),
@@ -156,6 +162,7 @@ impl PaperListItem {
             match f {
                 "authors" => item.authors = Some(row.authors.clone()),
                 "year" => item.year = row.year,
+                "date" => item.date = row.date.clone(),
                 "tags" => {
                     item.tags = Some(row.tags.iter().map(|t| t.name.clone()).collect());
                 }

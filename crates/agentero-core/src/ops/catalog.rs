@@ -77,7 +77,7 @@ pub fn build() -> Vec<OpSpec> {
                 "tag?": ["string"],
                 "unread?": "bool",
                 "status?": "string (CLI)",
-                "fields?": ["id|path|title|authors|year|tags|…"],
+                "fields?": ["id|path|title|authors|year|date|tags|…"],
                 "full?": "bool",
                 "limit?": "number (MCP, default 50, max 200)"
             }),

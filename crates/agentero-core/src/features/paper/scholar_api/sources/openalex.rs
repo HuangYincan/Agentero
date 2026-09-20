@@ -135,7 +135,11 @@ fn map_work(work: &Value) -> Option<ApiPaper> {
         title,
         authors,
         year,
-        date: year.map(|y| y.to_string()),
+        date: work
+            .get("publication_date")
+            .and_then(|v| v.as_str())
+            .map(String::from)
+            .or_else(|| year.map(|y| format!("{y:04}"))),
         venue,
         volume,
         issue,

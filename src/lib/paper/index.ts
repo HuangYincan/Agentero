@@ -48,6 +48,14 @@ export {
 	PAPER_INTERNAL_DIR_NAMES,
 } from "@/lib/paper/paths";
 export {
+	formatPublicationDate,
+	isPublicationDateInput,
+	type PublicationDate,
+	parsePublicationDate,
+	publicationDateSortKey,
+	publicationDateText,
+} from "@/lib/paper/publication-date";
+export {
 	getRemoteArxivPaper,
 	getRemoteArxivPaperByPath,
 	isRemoteArxivPath,

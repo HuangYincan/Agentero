@@ -499,7 +499,8 @@ function isTranslateTargetLang(v: unknown): v is TranslateTargetLang {
  *
  * Migration: if the saved order matches the old canonical layout (before the
  * standalone publication column was added), adopt the new canonical order so
- * publication lands right after year. Custom user orders are preserved.
+ * publication lands right after the date. Custom user orders are preserved.
+ * The `year` column key was renamed to `date`; it keeps its saved position.
  */
 function normalizeLibraryColumns(raw: unknown): LibraryColumnPref[] {
 	const known = new Set<string>(LIBRARY_COLUMN_KEYS);
@@ -508,8 +509,10 @@ function normalizeLibraryColumns(raw: unknown): LibraryColumnPref[] {
 	if (Array.isArray(raw)) {
 		for (const item of raw) {
 			if (!item || typeof item !== "object") continue;
-			const key = (item as { key?: unknown }).key;
-			if (typeof key !== "string" || !known.has(key)) continue;
+			const rawKey = (item as { key?: unknown }).key;
+			if (typeof rawKey !== "string") continue;
+			const key = rawKey === "year" ? "date" : rawKey;
+			if (!known.has(key)) continue;
 			const k = key as LibraryColumnKey;
 			if (seen.has(k)) continue;
 			seen.add(k);
@@ -524,7 +527,7 @@ function normalizeLibraryColumns(raw: unknown): LibraryColumnPref[] {
 	const oldCanonicalKeys: LibraryColumnKey[] = [
 		"title",
 		"authors",
-		"year",
+		"date",
 		"tags",
 		"id",
 	];

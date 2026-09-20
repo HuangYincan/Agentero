@@ -40,7 +40,7 @@ agentero describe paper_list --json   # MCP tool 名亦可
 
 未知 id 返回 `usage`，并尽量提示相近 op。Skill `agentero-cli`（v16+）按**任务分支**写协议（已知 path 的问答直接读文件；探索才 `paper list`；`describe` 仅在 flag 未知时用；`set-read` 只在 paper-reader / 显式标已读后），细节仍以本命令为准。
 
-`paper list --json` 默认每行只含 `id/path/title`；用 `--fields year,tags,abstract,…`（逗号分隔、可重复）按需加字段，或 `--full` 输出完整 `PaperRecord`。未知字段报 `usage` 错误并列出合法字段。text 表格输出不受影响。
+`paper list --json` 默认每行只含 `id/path/title`；用 `--fields year,date,tags,abstract,…`（逗号分隔、可重复）按需加字段，或 `--full` 输出完整 `PaperRecord`。未知字段报 `usage` 错误并列出合法字段。text 表格不受 `--fields` 影响，其 DATE 列显示 `date`（缺失时回退 `year`）。
 
 `paper get` / 其它接受 paper ref 的命令：优先 vault-relative **path**。bare **id** 在多 shelf 同 id 时返回 `paper_ambiguous`（`details.candidates` 为可选 path），message 会提示用 path 重试。
 

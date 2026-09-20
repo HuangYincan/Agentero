@@ -14,11 +14,13 @@ import { notifyError, notifySuccess, notifyWarning } from "@/lib/core/notify";
 import { enqueueTask, enqueueTaskSettled } from "@/lib/core/tasks";
 import {
 	detectPaperDirectory,
+	isPublicationDateInput,
 	notesPathForPaper,
 	type PaperMetadata,
 	type PaperTag,
 	paperCatalogPath,
 	paperDirFromPath,
+	publicationDateText,
 	resolvePapersParentDir,
 } from "@/lib/paper";
 import {
@@ -479,7 +481,9 @@ export function resolvedMetaPatch(meta: PaperMetadata): PaperMetaPatch {
 	const patch: PaperMetaPatch = {};
 	if (meta.title?.trim()) patch.title = meta.title.trim();
 	if (meta.authors?.length) patch.authors = meta.authors;
-	if (meta.year != null) patch.year = String(meta.year);
+	// Sources occasionally return prose ("Spring 2017"); the Host would reject it.
+	const date = publicationDateText(meta);
+	if (date && isPublicationDateInput(date)) patch.date = date;
 	if (meta.doi?.trim()) patch.doi = meta.doi.trim();
 	if (meta.arxiv_id?.trim()) patch.arxivId = meta.arxiv_id.trim();
 	if (meta.publication?.trim()) patch.publication = meta.publication.trim();

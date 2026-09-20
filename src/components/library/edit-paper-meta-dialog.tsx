@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useOverlayRegistration } from "@/hooks/use-overlay-registration";
+import { isPublicationDateInput, publicationDateText } from "@/lib/paper";
 import {
 	type PaperMetaPatch,
 	resolveIdentifierMetadata,
@@ -27,7 +28,7 @@ import type { PaperMetadata } from "@/lib/paper/types";
 type Draft = {
 	title: string;
 	authors: string;
-	year: string;
+	date: string;
 	doi: string;
 	arxivId: string;
 	publication: string;
@@ -44,7 +45,7 @@ function draftFromPaper(paper: PaperMetadata): Draft {
 	return {
 		title: paper.title ?? "",
 		authors: (paper.authors ?? []).join("\n"),
-		year: paper.year != null ? String(paper.year) : "",
+		date: publicationDateText(paper),
 		doi: paper.doi ?? "",
 		arxivId: paper.arxiv_id ?? "",
 		publication: paper.publication ?? "",
@@ -68,7 +69,7 @@ function diffDraft(initial: Draft, current: Draft): PaperMetaPatch {
 			.map((a) => a.trim())
 			.filter(Boolean);
 	}
-	if (current.year !== initial.year) patch.year = current.year;
+	if (current.date !== initial.date) patch.date = current.date;
 	if (current.doi !== initial.doi) patch.doi = current.doi;
 	if (current.arxivId !== initial.arxivId) patch.arxivId = current.arxivId;
 	if (current.publication !== initial.publication)
@@ -82,18 +83,6 @@ function diffDraft(initial: Draft, current: Draft): PaperMetaPatch {
 	if (current.pdfUrl !== initial.pdfUrl) patch.pdfUrl = current.pdfUrl;
 	if (current.htmlUrl !== initial.htmlUrl) patch.htmlUrl = current.htmlUrl;
 	return patch;
-}
-
-function yearValid(year: string): boolean {
-	const trimmed = year.trim();
-	if (!trimmed) return true;
-	const parsed = Number.parseInt(trimmed, 10);
-	return (
-		Number.isFinite(parsed) &&
-		String(parsed) === trimmed &&
-		parsed >= 1000 &&
-		parsed <= 2100
-	);
 }
 
 /**
@@ -140,7 +129,7 @@ export function EditPaperMetaDialog({
 		!saving &&
 		dirty &&
 		(draft?.title.trim().length ?? 0) > 0 &&
-		yearValid(draft?.year ?? "");
+		isPublicationDateInput(draft?.date ?? "");
 
 	const set = (key: keyof Draft, value: string) => {
 		setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
@@ -173,7 +162,7 @@ export function EditPaperMetaDialog({
 							authors: meta.authors?.length
 								? meta.authors.join("\n")
 								: prev.authors,
-							year: meta.year != null ? String(meta.year) : prev.year,
+							date: publicationDateText(meta) || prev.date,
 							doi: meta.doi?.trim() || prev.doi,
 							arxivId: meta.arxiv_id?.trim() || prev.arxivId,
 							publication: meta.publication?.trim() || prev.publication,
@@ -245,10 +234,9 @@ export function EditPaperMetaDialog({
 						/>
 					</div>
 					<div className="grid grid-cols-2 gap-2">
-						{field("year", t("paperInfo.editMeta.fieldYear"), {
-							inputMode: "numeric",
-							placeholder: "2024",
-							"aria-invalid": !yearValid(draft.year) || undefined,
+						{field("date", t("paperInfo.editMeta.fieldDate"), {
+							placeholder: "2024-06-12",
+							"aria-invalid": !isPublicationDateInput(draft.date) || undefined,
 						})}
 						{field("arxivId", t("paperInfo.editMeta.fieldArxivId"), {
 							className: "font-mono text-xs",

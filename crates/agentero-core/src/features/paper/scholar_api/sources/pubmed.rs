@@ -131,7 +131,13 @@ fn parse_article(xml: &str) -> Option<ApiPaper> {
         })
         .collect();
 
-    let year = tag_text(xml, "Year")
+    // The first `<PubDate>` is the journal issue date; it carries the day for
+    // print articles and often only the month for online-first ones.
+    let pub_date = tag_text(xml, "PubDate");
+    let year = pub_date
+        .as_deref()
+        .and_then(|p| tag_text(p, "Year"))
+        .or_else(|| tag_text(xml, "Year"))
         .and_then(|y| y.parse::<i32>().ok())
         .or_else(|| {
             tag_text(xml, "MedlineDate").and_then(|d| {
@@ -143,7 +149,22 @@ fn parse_article(xml: &str) -> Option<ApiPaper> {
                     .ok()
             })
         });
-    let date = year.map(|y| y.to_string());
+    let date = year.map(|y| {
+        let month = pub_date
+            .as_deref()
+            .and_then(|p| tag_text(p, "Month"))
+            .and_then(|m| month_number(&m));
+        let day = pub_date
+            .as_deref()
+            .and_then(|p| tag_text(p, "Day"))
+            .and_then(|d| d.trim().parse::<u32>().ok())
+            .filter(|d| (1..=31).contains(d));
+        match (month, day) {
+            (Some(month), Some(day)) => format!("{y:04}-{month:02}-{day:02}"),
+            (Some(month), None) => format!("{y:04}-{month:02}"),
+            _ => format!("{y:04}"),
+        }
+    });
 
     let venue = tag_text(xml, "Journal").and_then(|journal| tag_text(&journal, "Title"));
     let volume = tag_text(xml, "Volume");
@@ -218,6 +239,22 @@ fn tag_text(xml: &str, tag: &str) -> Option<String> {
         pos = absolute + 1;
     }
     None
+}
+
+/// PubMed months are 3-letter abbreviations (`Jun`); numeric values pass through.
+fn month_number(text: &str) -> Option<u32> {
+    let trimmed = text.trim();
+    if let Ok(value) = trimmed.parse::<u32>() {
+        return (1..=12).contains(&value).then_some(value);
+    }
+    const MONTHS: [&str; 12] = [
+        "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
+    ];
+    let lower = trimmed.to_ascii_lowercase();
+    MONTHS
+        .iter()
+        .position(|month| lower.starts_with(month))
+        .map(|index| index as u32 + 1)
 }
 
 /// Extract text from every `<tag …>…</tag>` fragment in `xml`.
@@ -338,6 +375,7 @@ mod tests {
             Some("10.1038/s41586-022-00001-x")
         );
         assert_eq!(paper.year, Some(2022));
+        assert_eq!(paper.date.as_deref(), Some("2022-01"));
         assert_eq!(paper.venue.as_deref(), Some("Nature"));
         assert_eq!(paper.volume.as_deref(), Some("600"));
         assert_eq!(paper.issue.as_deref(), Some("1"));

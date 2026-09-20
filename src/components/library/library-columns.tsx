@@ -23,7 +23,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/core/utils";
-import { formatAuthorsShort } from "@/lib/paper";
+import { formatAuthorsShort, publicationDateText } from "@/lib/paper";
 
 const COPY_CELL_BASE =
 	"cursor-pointer select-text rounded-sm hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
@@ -164,13 +164,13 @@ export const COLUMN_META = {
 			</td>
 		),
 	},
-	year: {
-		labelKey: "papersLibrary.colYear",
-		widthWeight: 8,
-		headerClassName: "min-w-16",
+	date: {
+		labelKey: "papersLibrary.colDate",
+		widthWeight: 10,
+		headerClassName: "min-w-[92px]",
 		render: (p) => (
 			<td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-muted-foreground text-xs">
-				{p.year ?? "—"}
+				{publicationDateText(p) || "—"}
 			</td>
 		),
 	},

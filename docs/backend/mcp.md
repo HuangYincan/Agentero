@@ -53,7 +53,7 @@ Codex / Inspector 也可直接打 loopback URL。stdio 子进程不是这条通�
 
 | Tool | 作用 |
 |---|---|
-| `paper_list` | 列表。**默认**每行只有 `id/path/title`（省 token）。`fields[]?` 按需加字段（`year`/`tags`/`authors`/`isRead`/…）；`full?` 恢复完整 metadata 行。另有 `query?`、`tag[]?`、`unread?`、`limit?`（默认 50，封顶 200）。abstract 只在 `paper_get`。 |
+| `paper_list` | 列表。**默认**每行只有 `id/path/title`（省 token）。`fields[]?` 按需加字段（`year`/`date`/`tags`/`authors`/`isRead`/…）；`full?` 恢复完整 metadata 行。另有 `query?`、`tag[]?`、`unread?`、`limit?`（默认 50，封顶 200）。abstract 只在 `paper_get`。 |
 | `paper_get` | 单篇 metadata（含 abstract） |
 | `paper_set_read` | 设置 catalog `isRead`（默认 true） |
 | `import_id` | 魔棒入库（arxiv / DOI / URL）。`parent?` 默认当前 Library 作用域或 `papers` |

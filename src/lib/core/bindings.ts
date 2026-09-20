@@ -3547,8 +3547,11 @@ export type PaperListRow_Serialize = {
 export type PaperMetaPatch = {
 	title: string | null,
 	authors: string[] | null,
-	/**  Year as text so an empty string can clear it; validated as 1000..=2100. */
-	year: string | null,
+	/**
+	 *  Publication date as text — `YYYY`, `YYYY-MM` or `YYYY-MM-DD` — so an
+	 *  empty string can clear it. `year` is derived from it.
+	 */
+	date: string | null,
 	doi: string | null,
 	arxivId: string | null,
 	publication: string | null,
@@ -3675,7 +3678,9 @@ export type PaperRecord_Deserialize = {
 	title: string,
 	authors: string[],
 	creators: Json | null,
+	/**  Publication year, kept for citation keys / tree labels. */
 	year: number | null,
+	/**  Publication date at source precision: `YYYY`, `YYYY-MM` or `YYYY-MM-DD`. */
 	date: string | null,
 	abstract: string | null,
 	tags?: PaperTag[],
@@ -3730,7 +3735,9 @@ export type PaperRecord_Serialize = {
 	title: string,
 	authors: string[],
 	creators?: Json | null,
+	/**  Publication year, kept for citation keys / tree labels. */
 	year?: number | null,
+	/**  Publication date at source precision: `YYYY`, `YYYY-MM` or `YYYY-MM-DD`. */
 	date?: string | null,
 	abstract?: string | null,
 	tags: PaperTag[],
