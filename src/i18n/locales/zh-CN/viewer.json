@@ -23,6 +23,10 @@
 		"findNext": "下一个",
 		"findClose": "关闭查找",
 		"findNoResults": "无结果",
+		"exportAnnotatedPdf": "导出带批注的 PDF",
+		"exportingAnnotatedPdf": "正在导出带批注的 PDF…",
+		"exportAnnotatedPdfFailed": "导出带批注的 PDF 失败",
+		"exportDesktopOnly": "导出功能仅在桌面端可用",
 		"layout": {
 			"unavailable": "版面分析尚未就绪。",
 			"preparingModel": "正在准备版面模型…",

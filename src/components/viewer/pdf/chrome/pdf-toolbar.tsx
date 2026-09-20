@@ -1,5 +1,12 @@
 import type { PdfEngine } from "@embedpdf/models";
-import { Clock, Languages, Library, Loader2, ScanSearch } from "lucide-react";
+import {
+	Clock,
+	FileDown,
+	Languages,
+	Library,
+	Loader2,
+	ScanSearch,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -30,6 +37,10 @@ type PdfToolbarProps = {
 	onImportToLibrary?: () => void;
 	/** True while the import is running. */
 	importBusy?: boolean;
+	/** Export the current PDF with embedded highlights/comments. */
+	onExportAnnotatedPdf?: () => void;
+	/** True while the annotated PDF export is running. */
+	exportBusy?: boolean;
 };
 
 /** Top-right toolbar: region select, bulk translate. Always visible. */
@@ -46,6 +57,8 @@ export function PdfToolbar({
 	isRemotePaper = false,
 	onImportToLibrary,
 	importBusy = false,
+	onExportAnnotatedPdf,
+	exportBusy = false,
 }: PdfToolbarProps) {
 	const { t } = useTranslation("viewer");
 
@@ -239,6 +252,30 @@ export function PdfToolbar({
 								<span className="ml-2 text-background/70">
 									{formatShortcutById("layoutTranslate")}
 								</span>
+							</TooltipContent>
+						</Tooltip>
+					) : null}
+					{onExportAnnotatedPdf ? (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									type="button"
+									size="icon-xs"
+									variant="ghost"
+									className="shrink-0 self-center"
+									aria-label={t("pdf.exportAnnotatedPdf")}
+									disabled={exportBusy || !engine}
+									onClick={onExportAnnotatedPdf}
+								>
+									{exportBusy ? (
+										<Loader2 className="size-3.5 animate-spin" aria-hidden />
+									) : (
+										<FileDown className="size-3.5" aria-hidden />
+									)}
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent side="bottom">
+								{t("pdf.exportAnnotatedPdf")}
 							</TooltipContent>
 						</Tooltip>
 					) : null}

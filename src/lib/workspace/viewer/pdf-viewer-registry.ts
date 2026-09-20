@@ -52,6 +52,8 @@ export type PdfViewerHandle = {
 		bbox: PdfAskNormalizedRect;
 		maxEdgePx?: number;
 	}) => Promise<PromptImage | null>;
+	/** Export the current PDF with embedded highlights/comments to a file. */
+	exportAnnotatedPdf: () => Promise<void>;
 };
 
 const handles = new Map<string, PdfViewerHandle>();

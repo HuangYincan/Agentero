@@ -19,6 +19,7 @@ import {
 	useEffect,
 	useRef,
 } from "react";
+import { useTranslation } from "react-i18next";
 import type {
 	LayoutAnalysisTask,
 	StartLayoutAnalysisOptions,
@@ -28,6 +29,9 @@ import type {
 	PdfViewerHandle,
 	PdfViewerProps,
 } from "@/components/viewer/pdf/types";
+import { errorText } from "@/lib/core/error";
+import { notifyError } from "@/lib/core/notify";
+import { isTauri } from "@/lib/core/tauri";
 import type { PdfVisualSessionTrace } from "@/lib/pdf/agent-trace";
 import { deletePdfAskThread, type PdfAskThread } from "@/lib/pdf/ask";
 import { isHighlightObject } from "@/lib/pdf/highlight/annotation-store";
@@ -38,6 +42,7 @@ import {
 	setFocusedLayoutRegion,
 } from "@/lib/pdf/layout";
 import type { ActiveSelectionCard } from "@/lib/pdf/selection";
+import { writeVaultBytes } from "@/lib/vault/fs";
 
 /** Longest edge of a figure-rail thumbnail crop (px). */
 const REGION_THUMBNAIL_MAX_EDGE = 360;
@@ -56,6 +61,8 @@ export type UsePdfViewerHandleOptions = {
 	docId: string;
 	/** Sidecar root; deleting an ask also removes its `marks/<id>.json`. */
 	paperAbsPath: string | null;
+	/** Default file name (no extension) for the exported annotated PDF. */
+	defaultExportName: string;
 	/** Parent callback, often an inline lambda — kept in a ref. */
 	onHandle: PdfViewerProps["onHandle"];
 	/** EmbedPDF capability; owned by `PdfViewerInner` (plugin context). */
@@ -86,6 +93,7 @@ export type UsePdfViewerHandleOptions = {
 export function usePdfViewerHandle({
 	docId,
 	paperAbsPath,
+	defaultExportName,
 	onHandle,
 	annotationCap,
 	scrollRef,
@@ -104,12 +112,15 @@ export function usePdfViewerHandle({
 	toggleRegionSelect,
 	toggleLayoutTranslate,
 }: UsePdfViewerHandleOptions): void {
+	const { t } = useTranslation("viewer");
 	const onHandleRef = useRef(onHandle);
 	onHandleRef.current = onHandle;
 	// Dual-pane deps (translation-tab callback) churn per render; mirror the
 	// latest callback so the handle object never needs re-registering.
 	const toggleLayoutTranslateRef = useRef(toggleLayoutTranslate);
 	toggleLayoutTranslateRef.current = toggleLayoutTranslate;
+	const defaultExportNameRef = useRef(defaultExportName);
+	defaultExportNameRef.current = defaultExportName;
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: the injected refs and setters are stable identities; depending on them would re-register the handle on every mark change.
 	useEffect(() => {
@@ -225,6 +236,33 @@ export function usePdfViewerHandle({
 					return image;
 				} catch {
 					return null;
+				}
+			},
+			exportAnnotatedPdf: async () => {
+				if (!isTauri()) {
+					notifyError(t("pdf.exportDesktopOnly"));
+					return;
+				}
+				const engine = engineRef.current;
+				const docCap = docCapRef.current;
+				if (!engine || !docCap) return;
+				const document = docCap.getDocument(docId);
+				if (!document) return;
+				try {
+					const scope = annotationCap?.forDocument(docId);
+					if (scope) {
+						await scope.commit().toPromise();
+					}
+					const buffer = await engine.saveAsCopy(document).toPromise();
+					const { save } = await import("@tauri-apps/plugin-dialog");
+					const path = await save({
+						defaultPath: `${defaultExportNameRef.current}.pdf`,
+						filters: [{ name: "PDF", extensions: ["pdf"] }],
+					});
+					if (!path) return;
+					await writeVaultBytes(path, new Uint8Array(buffer));
+				} catch (error) {
+					notifyError(errorText(error));
 				}
 			},
 		};
