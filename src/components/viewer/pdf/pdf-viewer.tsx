@@ -871,6 +871,7 @@ function PdfViewerInner({
 	const { askPinAnchors, translatePinAnchors } = usePdfPinAnchors({
 		threads,
 		translates,
+		activeCard,
 	});
 
 	/**

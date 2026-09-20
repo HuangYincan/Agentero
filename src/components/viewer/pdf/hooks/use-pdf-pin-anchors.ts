@@ -11,6 +11,7 @@
 import { useStableDerived } from "@/components/viewer/pdf/hooks/use-stable-derived";
 import { threadHasUserQuestion, threadPreview } from "@/lib/pdf/ask/schema";
 import type { PdfAskNormalizedRect, PdfAskThread } from "@/lib/pdf/ask/types";
+import type { ActiveSelectionCard } from "@/lib/pdf/selection";
 import type {
 	PdfTranslateRecord,
 	PdfTranslateRect,
@@ -50,6 +51,8 @@ function rectsKey(
 export type UsePdfPinAnchorsOptions = {
 	threads: PdfAskThread[];
 	translates: PdfTranslateRecord[];
+	/** Open card; a translate pin lives only as long as its own card. */
+	activeCard: ActiveSelectionCard | null;
 };
 
 export type PdfPinAnchors = {
@@ -60,6 +63,7 @@ export type PdfPinAnchors = {
 export function usePdfPinAnchors({
 	threads,
 	translates,
+	activeCard,
 }: UsePdfPinAnchorsOptions): PdfPinAnchors {
 	/**
 	 * Pin geometry is anchor data only. While an answer / translation streams,
@@ -85,21 +89,32 @@ export function usePdfPinAnchors({
 			)
 			.join(";"),
 	);
+	/**
+	 * Translate is the one ephemeral mark kind: the record outlives the card (it
+	 * is persisted and the card stack reopens it), but the `文A` gutter pin is a
+	 * hover surface for the card and nothing else — so once the card auto-hides
+	 * the pin goes with it, leaving no breadcrumb on the page after the result
+	 * has been read.
+	 */
+	const activeTranslateId =
+		activeCard?.kind === "translate" ? activeCard.id : null;
 	const translatePinAnchors = useStableDerived<TranslatePinAnchor[]>(
 		() =>
-			translates.map((tr) => ({
-				id: tr.id,
-				page: tr.page,
-				rects: tr.rects,
-				preview: tr.quote?.trim() || tr.id,
-				hasError: Boolean(tr.error),
-			})),
-		translates
+			translates
+				.filter((tr) => tr.id === activeTranslateId)
+				.map((tr) => ({
+					id: tr.id,
+					page: tr.page,
+					rects: tr.rects,
+					preview: tr.quote?.trim() || tr.id,
+					hasError: Boolean(tr.error),
+				})),
+		`${activeTranslateId ?? ""}#${translates
 			.map(
 				(tr) =>
 					`${tr.id}|${tr.page}|${tr.error ? 1 : 0}|${tr.quote ?? ""}|${rectsKey(tr.rects)}`,
 			)
-			.join(";"),
+			.join(";")}`,
 	);
 	return { askPinAnchors, translatePinAnchors };
 }
