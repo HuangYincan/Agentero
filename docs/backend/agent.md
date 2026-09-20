@@ -115,8 +115,8 @@ Agentero 作为 **ACP Client**，stdio JSON-RPC 连接用户本机或远端 Agen
   - Lifecycle 跳过（`registry/lifecycle.rs`）：`bundled_tier_active`（PATH 无适配器且内置层
     可 spawn）时 install/update 只装/升级 host，不再 npm 安装适配器；PATH 装上适配器后自动
     恢复双装语义。uninstall 不受影响（npm 卸载只作用于 PATH 安装）。
-  - Catalog：`acpCommandAvailable = PATH 命中 || bundled_spawnable`；新字段 `acpBundled` /
-    `acpBundledVersion`（Settings 显示「内置」徽标）。远程（SSH）无内置层，行为不变。
+  - Catalog / registry：PATH 中的完整适配器优先；内置层仅在适配器、合格 Node 和 host CLI 均可用时计入 `acpCommandAvailable` / `available`。host 使用启动时的合并环境解析，显式 `CLAUDE_CODE_EXECUTABLE` / `CODEX_PATH` 优先且必须可执行；无效覆盖不回退其他 host。`binaryAvailable` / `resolvedPath` 同步反映该 host。
+    缺少依赖时不自动注册，已有注册及默认 ID 保留，但当前 Missing / unavailable 优先于历史探测成功，引导和聊天不能因旧注册记录重新放行。`acpBundled` / `acpBundledVersion` 仅表示资源来源（Settings「内置」徽标），不表示 Agent 已安装。远程（SSH）无内置层，行为不变。
   - **macOS 打包陷阱**：`tauri.macos.conf.json` 的 `bundle.resources` 会整体覆盖主 conf，
     必须同步包含 `adapters/**/*`，否则 macOS 包静默丢掉内置层。
 - 设置页会将 ACP 探测中的认证错误（如 `invalid_grant` / `failed to authenticate` /

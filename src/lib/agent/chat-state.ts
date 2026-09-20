@@ -365,14 +365,14 @@ export function catalogEntryUsable(e: {
 	binaryAvailable: boolean;
 	acpCommandAvailable: boolean;
 }): boolean {
-	return e.acpStatus === "ready";
+	return e.acpCommandAvailable && e.acpStatus === "ready";
 }
 
 export function registryAgentUsable(a: {
 	available: boolean;
 	lastProbeOk?: boolean | null;
 }): boolean {
-	return a.available || a.lastProbeOk === true;
+	return a.available;
 }
 
 /**
@@ -386,12 +386,14 @@ export function buildOptions(
 	const options: AgentOption[] = [];
 	const tail: AgentOption[] = [];
 	const seenIds = new Set<string>();
+	const catalogTemplateIds = new Set<string>();
 
 	if (catalog) {
 		for (const e of catalog.entries) {
-			if (!catalogEntryUsable(e)) continue;
 			const id = e.registeredId ?? null;
 			if (id) seenIds.add(id);
+			catalogTemplateIds.add(e.templateId);
+			if (!catalogEntryUsable(e)) continue;
 			options.push({
 				key: `catalog:${e.templateId}`,
 				id,
@@ -422,6 +424,9 @@ export function buildOptions(
 		for (const a of registry.agents) {
 			if (!registryAgentUsable(a)) continue;
 			if (seenIds.has(a.id)) continue;
+			if (a.template !== "custom" && catalogTemplateIds.has(a.template)) {
+				continue;
+			}
 			seenIds.add(a.id);
 			tail.push({
 				key: `reg:${a.id}`,

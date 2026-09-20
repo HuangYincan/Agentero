@@ -189,31 +189,28 @@ pub fn bundled_spawn(
     Some((node, adapter))
 }
 
-/// Env pointing a bundled adapter at the user's host CLI. Only the two known
-/// templates map to an env key; resolution runs against the merged agent
-/// environment so login-shell PATHs are honored. Empty when the host is not
-/// found — the caller only injects when it is about to use the bundled tier,
-/// and user-configured env always wins (`or_insert` at the call site).
+pub(crate) fn host_requirement(template_id: &str) -> Option<(&'static str, &'static str)> {
+    match template_id {
+        "claude-acp" => Some(("claude", "CLAUDE_CODE_EXECUTABLE")),
+        "codex-acp" => Some(("codex", "CODEX_PATH")),
+        _ => None,
+    }
+}
+
+pub fn host_path(template_id: &str, child_env: &HashMap<String, String>) -> Option<PathBuf> {
+    let (command, key) = host_requirement(template_id)?;
+    let command = child_env.get(key).map(String::as_str).unwrap_or(command);
+    crate::features::agent::acp::client::resolve_command_in_agent_env(command, child_env)
+}
+
 pub fn host_env_injection(
     template_id: &str,
     child_env: &HashMap<String, String>,
 ) -> Vec<(String, String)> {
-    let resolve = |command: &str| {
-        crate::features::agent::acp::client::resolve_command_in_agent_env(command, child_env)
-            .map(|p| p.display().to_string())
-    };
-    match template_id {
-        // claude-agent-acp: CLAUDE_CODE_EXECUTABLE (defaults to the SDK's
-        // stripped-away embedded binary, so it must be pointed at the host).
-        "claude-acp" => resolve("claude")
-            .map(|p| vec![("CLAUDE_CODE_EXECUTABLE".to_string(), p)])
-            .unwrap_or_default(),
-        // codex-acp: CODEX_PATH (defaults to bare `codex` on PATH).
-        "codex-acp" => resolve("codex")
-            .map(|p| vec![("CODEX_PATH".to_string(), p)])
-            .unwrap_or_default(),
-        _ => Vec::new(),
-    }
+    host_requirement(template_id)
+        .and_then(|(_, key)| host_path(template_id, child_env).map(|path| (key, path)))
+        .map(|(key, path)| vec![(key.to_string(), path.display().to_string())])
+        .unwrap_or_default()
 }
 
 /// Scan-status hint when the tier exists but cannot run (Node missing/old).
@@ -355,6 +352,66 @@ mod tests {
         assert!(host_env_injection("claude-acp", &empty).is_empty());
         assert!(host_env_injection("codex-acp", &empty).is_empty());
         assert!(host_env_injection("dsh", &empty).is_empty());
+    }
+
+    fn fake_host(dir: &Path, name: &str) -> PathBuf {
+        let file = dir.join(if cfg!(windows) {
+            format!("{name}.cmd")
+        } else {
+            name.to_string()
+        });
+        std::fs::write(&file, "#!/bin/sh\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        file
+    }
+
+    #[test]
+    fn host_path_resolves_merged_path_and_explicit_override() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut env = HashMap::from([("PATH".to_string(), tmp.path().display().to_string())]);
+        for id in ["claude-acp", "codex-acp"] {
+            let (host, key) = host_requirement(id).unwrap();
+            let default = fake_host(tmp.path(), host);
+            assert_eq!(host_path(id, &env), Some(default));
+
+            let explicit = fake_host(tmp.path(), &format!("custom-{host}"));
+            env.insert(key.to_string(), explicit.display().to_string());
+            assert_eq!(host_path(id, &env), Some(explicit.clone()));
+            assert_eq!(
+                host_env_injection(id, &env),
+                vec![(key.to_string(), explicit.display().to_string())]
+            );
+        }
+    }
+
+    #[test]
+    fn host_path_rejects_missing_and_invalid_overrides_without_path_fallback() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut env = HashMap::from([("PATH".to_string(), tmp.path().display().to_string())]);
+        for id in ["claude-acp", "codex-acp"] {
+            let (host, key) = host_requirement(id).unwrap();
+            assert!(host_path(id, &env).is_none());
+            fake_host(tmp.path(), host);
+            for value in [
+                String::new(),
+                tmp.path().join("missing").display().to_string(),
+            ] {
+                env.insert(key.to_string(), value);
+                assert!(host_path(id, &env).is_none());
+                assert!(host_env_injection(id, &env).is_empty());
+            }
+            #[cfg(unix)]
+            {
+                let non_executable = tmp.path().join(format!("non-executable-{host}"));
+                std::fs::write(&non_executable, "data").unwrap();
+                env.insert(key.to_string(), non_executable.display().to_string());
+                assert!(host_path(id, &env).is_none());
+            }
+        }
     }
 
     #[test]

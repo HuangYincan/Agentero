@@ -1,11 +1,14 @@
 use crate::core::error::AppError;
+use crate::features::agent::acp::client::{
+    build_child_env, effective_local_agent_env, resolve_command_in_agent_env,
+};
 use crate::features::agent::models::{
     default_agent_proxy_url, AgentDescriptor, AgentRegistryState, AgentTelemetrySummary,
     AgentTemplate, CatalogAcpStatus, CatalogEntry, CatalogScanResponse, ProbeResult,
     UpsertAgentRequest,
 };
 use crate::features::agent::registry::bundled;
-use crate::features::agent::registry::discovery::{probe_command, resolve_command};
+use crate::features::agent::registry::discovery::probe_command;
 use crate::features::agent::registry::lifecycle;
 use crate::features::agent::registry::templates::{
     catalog_templates, template_from_id, template_info,
@@ -395,30 +398,45 @@ impl AgentRegistry {
             let mut entries = Vec::new();
             let mut registered_new = false;
             for info in catalog_templates() {
-                let detect = info
-                    .detect_command
-                    .as_deref()
-                    .unwrap_or(info.command.as_str());
-                let detect_path = resolve_command(detect);
-                let binary_available = detect_path.is_some();
-                let path_acp_available = resolve_command(&info.command).is_some();
-                // Bundled adapter tier: counts as an available ACP entrypoint
-                // only when nothing is PATH-installed (PATH always wins) and
-                // it can actually spawn (Node resolvable, version sufficient).
-                let bundled = bundled::bundled_adapter(&info.id);
-                let bundled_ok = !path_acp_available
-                    && bundled.is_some()
-                    && bundled::bundled_spawnable(&info.id);
-                let acp_command_available = path_acp_available || bundled_ok;
-
                 let registered = state.agents.iter().find(|a| {
                     a.template.as_str() == info.id
                         || (a.command == info.command && a.args == info.args)
                 });
+                let descriptor_env = registered
+                    .map(|agent| agent.env.clone())
+                    .unwrap_or_else(|| catalog_env(&info));
+                let environment = build_child_env(
+                    std::env::vars(),
+                    crate::features::agent::registry::discovery::login_shell_env(),
+                    &descriptor_env,
+                );
+                let detect = info
+                    .detect_command
+                    .as_deref()
+                    .unwrap_or(info.command.as_str());
+                let path_acp_available =
+                    resolve_command_in_agent_env(&info.command, &environment).is_some();
+                let bundled = bundled::bundled_adapter(&info.id);
+                let detect_path = if !path_acp_available && bundled.is_some() {
+                    bundled::host_path(&info.id, &environment)
+                } else {
+                    resolve_command_in_agent_env(detect, &environment)
+                };
+                let binary_available = detect_path.is_some();
+                let availability =
+                    local_command_availability(&info.command, &info.id, &environment, || {
+                        bundled::bundled_spawn(&info.id, &environment).is_some()
+                    });
+                let acp_command_available = availability.is_ok();
 
                 let (acp_status, acp_agent_name, last_probe_error, last_probed_at) =
-                    if !acp_command_available && !binary_available {
-                        (CatalogAcpStatus::Missing, None, None, None)
+                    if !acp_command_available {
+                        let error = if binary_available {
+                            bundled::node_blocker_message(&info.id).or_else(|| availability.err())
+                        } else {
+                            availability.err()
+                        };
+                        (CatalogAcpStatus::Missing, None, error, None)
                     } else if let Some(reg) = registered {
                         match reg.last_probe_ok {
                             Some(true) => (
@@ -433,40 +451,10 @@ impl AgentRegistry {
                                 reg.last_probe_error.clone(),
                                 reg.last_probed_at.clone(),
                             ),
-                            None => {
-                                if acp_command_available {
-                                    (CatalogAcpStatus::NotProbed, None, None, None)
-                                } else {
-                                    (
-                                        CatalogAcpStatus::Missing,
-                                        None,
-                                        Some(format!("ACP command `{}` not found", info.command)),
-                                        None,
-                                    )
-                                }
-                            }
+                            None => (CatalogAcpStatus::NotProbed, None, None, None),
                         }
-                    } else if acp_command_available {
-                        (CatalogAcpStatus::NotProbed, None, None, None)
-                    } else if binary_available {
-                        // Host CLI present (e.g. `claude`) but ACP entrypoint
-                        // missing. When a bundled adapter exists but cannot
-                        // spawn (Node missing/old), say so instead.
-                        let error = bundled::node_blocker_message(&info.id)
-                            .unwrap_or_else(|| format!("ACP command `{}` not found", info.command));
-                        (CatalogAcpStatus::Missing, None, Some(error), None)
                     } else {
-                        (
-                            CatalogAcpStatus::Missing,
-                            None,
-                            Some(format!(
-                                "command `{}` not found on PATH",
-                                info.detect_command
-                                    .as_deref()
-                                    .unwrap_or(info.command.as_str())
-                            )),
-                            None,
-                        )
+                        (CatalogAcpStatus::NotProbed, None, None, None)
                     };
 
                 let mut registered_id = registered.map(|a| a.id.clone());
@@ -972,25 +960,38 @@ fn refresh_availability(state: &mut AgentRegistryState) {
     }
 }
 
-/// Mark an agent available when its command probes OK, or when the bundled
-/// adapter tier can spawn it instead (the launch path in `acp::client` falls
-/// back to `node <bundled entry>` when the adapter is not PATH-installed).
-fn probe_or_bundled(agent: &mut crate::features::agent::models::AgentDescriptor) {
-    match probe_command(&agent.command) {
-        Ok(_) => {
-            agent.available = true;
-            agent.last_error = None;
+fn local_command_availability(
+    command: &str,
+    template_id: &str,
+    environment: &HashMap<String, String>,
+    bundled_spawnable: impl FnOnce() -> bool,
+) -> Result<(), String> {
+    if resolve_command_in_agent_env(command, environment).is_some() {
+        return Ok(());
+    }
+    if bundled_spawnable() {
+        if bundled::host_path(template_id, environment).is_some() {
+            return Ok(());
         }
-        Err(e) => {
-            if bundled::bundled_spawnable(agent.template.as_str()) {
-                agent.available = true;
-                agent.last_error = None;
-            } else {
-                agent.available = false;
-                agent.last_error = Some(e);
-            }
+        if let Some((host, key)) = bundled::host_requirement(template_id) {
+            return Err(format!(
+                "host command `{host}` not found (check its installation or `{key}`)"
+            ));
         }
     }
+    Err(format!("ACP command `{command}` not found"))
+}
+
+fn probe_or_bundled(agent: &mut AgentDescriptor) {
+    let environment = effective_local_agent_env(agent);
+    let availability = local_command_availability(
+        &agent.command,
+        agent.template.as_str(),
+        &environment,
+        || bundled::bundled_spawn(agent.template.as_str(), &environment).is_some(),
+    );
+    agent.available = availability.is_ok();
+    agent.last_error = availability.err();
 }
 
 #[cfg(test)]
@@ -1201,6 +1202,49 @@ mod tests {
         assert!(raw.contains("X-Tenant: acme"));
         assert!(raw.contains("User-Agent: claude-cli/2.1.161"));
         assert!(!raw.contains("old-cli/0.1"));
+    }
+
+    #[test]
+    fn bundled_availability_requires_host_but_path_adapters_do_not() {
+        use super::local_command_availability;
+
+        let tmp = tempfile::tempdir().unwrap();
+        let mut environment =
+            HashMap::from([("PATH".to_string(), tmp.path().display().to_string())]);
+        for (id, command) in [
+            ("claude-acp", "claude-agent-acp"),
+            ("codex-acp", "codex-acp"),
+        ] {
+            let (host, key) = super::bundled::host_requirement(id).unwrap();
+            let error = local_command_availability(command, id, &environment, || true).unwrap_err();
+            assert!(error.contains(host));
+            assert!(error.contains(key));
+
+            let executable = tmp.path().join(if cfg!(windows) {
+                format!("{command}.cmd")
+            } else {
+                command.to_string()
+            });
+            std::fs::write(&executable, "#!/bin/sh\n").unwrap();
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755))
+                    .unwrap();
+            }
+            assert!(local_command_availability(command, id, &environment, || {
+                panic!("PATH adapter must bypass the bundled tier")
+            })
+            .is_ok());
+
+            environment.insert(key.to_string(), executable.display().to_string());
+            assert!(
+                local_command_availability("missing-adapter", id, &environment, || true).is_ok()
+            );
+            assert!(
+                local_command_availability("missing-adapter", id, &environment, || false).is_err()
+            );
+        }
     }
 
     #[test]

@@ -596,21 +596,34 @@ describe("buildOptions / resolveSelected", () => {
 		enabled: true,
 	};
 
+	const claudeAgent: AgentListResponse["agents"][number] = {
+		id: "claude-1",
+		name: "Claude",
+		template: "claude-acp",
+		command: "claude-agent-acp",
+		args: [],
+		env: {},
+		available: true,
+		lastProbeOk: true,
+	};
+
+	const claudeEntry: CatalogScanResponse["entries"][number] = {
+		templateId: "claude-acp",
+		name: "Claude",
+		description: "",
+		command: "claude",
+		args: [],
+		installHint: "",
+		binaryAvailable: true,
+		acpCommandAvailable: true,
+		acpStatus: "ready",
+		registeredId: "claude-1",
+		isDefault: true,
+	};
+
 	const catalog: CatalogScanResponse = {
 		entries: [
-			{
-				templateId: "claude-acp",
-				name: "Claude",
-				description: "",
-				command: "claude",
-				args: [],
-				installHint: "",
-				binaryAvailable: true,
-				acpCommandAvailable: true,
-				acpStatus: "ready",
-				registeredId: "claude-1",
-				isDefault: true,
-			},
+			claudeEntry,
 			{
 				templateId: "missing",
 				name: "Missing",
@@ -635,6 +648,126 @@ describe("buildOptions / resolveSelected", () => {
 		const opts = buildOptions(registry, catalog);
 		expect(opts.map((o) => o.name)).toEqual(["Claude", "Reg"]);
 		expect(opts.find((o) => o.name === "Missing")).toBeUndefined();
+	});
+
+	it.each([
+		"missing",
+		"ready",
+	] as const)("omits a bundled historical default without its host (acpStatus=%s)", (acpStatus) => {
+		const staleRegistry: AgentListResponse = {
+			...registry,
+			defaultId: "claude-1",
+			agents: [...registry.agents, { ...claudeAgent, available: false }],
+		};
+		const opts = buildOptions(staleRegistry, {
+			...catalog,
+			entries: [
+				{
+					...claudeEntry,
+					binaryAvailable: false,
+					acpCommandAvailable: false,
+					acpBundled: true,
+					acpStatus,
+				},
+			],
+		});
+
+		expect(opts.map((o) => o.id)).toEqual(["reg-1"]);
+		expect(resolveSelected(opts, "claude-1", staleRegistry)?.id).toBe("reg-1");
+	});
+
+	it.each([
+		{
+			registeredId: "claude-1",
+			id: "claude-1",
+			template: "custom",
+		},
+		{
+			registeredId: "claude-1",
+			id: "legacy-claude",
+			template: "claude-acp",
+		},
+		{
+			registeredId: null,
+			id: "legacy-claude",
+			template: "claude-acp",
+		},
+	] as const)("does not restore a failed catalog entry via registry ($registeredId / $id / $template)", ({
+		registeredId,
+		id,
+		template,
+	}) => {
+		const opts = buildOptions(
+			{
+				...registry,
+				agents: [...registry.agents, { ...claudeAgent, id, template }],
+			},
+			{
+				...catalog,
+				entries: [{ ...claudeEntry, acpStatus: "failed", registeredId }],
+			},
+		);
+
+		expect(opts.map((o) => o.id)).toEqual(["reg-1"]);
+	});
+
+	it.each([
+		"claude-acp",
+		"custom",
+	] as const)("uses current registry availability without a catalog (%s)", (template) => {
+		const state: AgentListResponse = {
+			...registry,
+			defaultId: "claude-1",
+			agents: [
+				...registry.agents,
+				{ ...claudeAgent, template, available: false },
+			],
+		};
+
+		expect(buildOptions(state, null).map((o) => o.id)).toEqual(["reg-1"]);
+		expect(
+			buildOptions(
+				{
+					...state,
+					agents: state.agents.map((agent) => ({
+						...agent,
+						available: true,
+					})),
+				},
+				null,
+			).map((o) => o.id),
+		).toEqual(["claude-1", "reg-1"]);
+	});
+
+	it("keeps available catalog custom agents but ignores their historical probes", () => {
+		const opts = buildOptions(null, {
+			...catalog,
+			entries: [],
+			customAgents: [
+				...registry.agents,
+				{ ...claudeAgent, template: "custom", available: false },
+			],
+		});
+
+		expect(opts.map((o) => o.id)).toEqual(["reg-1"]);
+	});
+
+	it("offers a ready PATH adapter without requiring its host CLI", () => {
+		const opts = buildOptions(null, {
+			...catalog,
+			entries: [
+				{
+					...claudeEntry,
+					command: "claude-agent-acp",
+					binaryAvailable: false,
+					acpBundled: false,
+					canInstall: true,
+				},
+			],
+		});
+
+		expect(opts).toHaveLength(1);
+		expect(opts[0]).toMatchObject({ id: "claude-1", source: "catalog" });
 	});
 
 	it("prefers selected id then default", () => {

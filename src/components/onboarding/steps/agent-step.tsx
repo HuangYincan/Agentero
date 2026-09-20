@@ -63,11 +63,7 @@ function statusLabelKey(status: CatalogEntry["acpStatus"]): StatusLabelKey {
 }
 
 function isAvailable(entry: CatalogEntry): boolean {
-	return (
-		entry.acpStatus === "ready" ||
-		Boolean(entry.registeredId) ||
-		entry.acpCommandAvailable
-	);
+	return entry.acpCommandAvailable;
 }
 
 /**
@@ -208,7 +204,8 @@ export const AgentStep = forwardRef<AgentStepHandle>(
 							const layer = available ? null : missingLayer(entry);
 							const adapterOnly = layer === "adapter";
 							const isDefault =
-								entry.isDefault || entry.registeredId === state?.defaultId;
+								available &&
+								(entry.isDefault || entry.registeredId === state?.defaultId);
 							const settingDefault = busyId === entry.templateId;
 							const installing = lifecycleBusyIds.has(entry.templateId);
 							const busy = settingDefault || installing;
