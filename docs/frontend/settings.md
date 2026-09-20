@@ -73,6 +73,7 @@
 
 - `uiTheme` 默认 `default`（内置外观）：Apple 系统灰材质——冷灰低饱和中性色（oklch hue ≈260），侧栏略重于画布、卡片抬起；`--brand` / `--highlight` 保留彩色强调。覆盖见 `src/index.css` `:root` / `.dark`。
 - 外观设置中的配色主题以紧凑预览网格展示背景、卡片、主色和强调色；点击预览项即可应用主题。
+- 原生窗口 chrome 跟随主题：`src/lib/shell/native-window-theme.ts` 在启动与 `settings:changed` 时调用 `window.setTheme`（`system` 传 `null` 交还系统），避免深色主题在 Windows 浅色系统下顶栏仍为白色；macOS 走 Overlay 标题栏不受影响。
 - 36 个 tweakcn 预设：`src/themes/tweakcn.json`；`src/lib/ui/theme.ts` 注入 CSS 变量。
 - 刷新主题数据：`node scripts/fetch-tweakcn-themes.mjs`。
 - 可访问性：`prefers-reduced-transparency` 下标题栏 / Library 表头退回实色；`prefers-contrast: more` 加深边框。
