@@ -20,6 +20,7 @@ import {
 	useRef,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import type {
 	LayoutAnalysisTask,
 	StartLayoutAnalysisOptions,
@@ -248,21 +249,32 @@ export function usePdfViewerHandle({
 				if (!engine || !docCap) return;
 				const document = docCap.getDocument(docId);
 				if (!document) return;
+
+				let path: string | null;
+				try {
+					const { save } = await import("@tauri-apps/plugin-dialog");
+					path = await save({
+						defaultPath: `${defaultExportNameRef.current}.pdf`,
+						filters: [{ name: "PDF", extensions: ["pdf"] }],
+					});
+				} catch (error) {
+					notifyError(errorText(error));
+					return;
+				}
+				if (!path) return;
+
+				const exportingToast = toast.loading(t("pdf.exportingAnnotatedPdf"));
 				try {
 					const scope = annotationCap?.forDocument(docId);
 					if (scope) {
 						await scope.commit().toPromise();
 					}
 					const buffer = await engine.saveAsCopy(document).toPromise();
-					const { save } = await import("@tauri-apps/plugin-dialog");
-					const path = await save({
-						defaultPath: `${defaultExportNameRef.current}.pdf`,
-						filters: [{ name: "PDF", extensions: ["pdf"] }],
-					});
-					if (!path) return;
 					await writeVaultBytes(path, new Uint8Array(buffer));
+					toast.dismiss(exportingToast);
 				} catch (error) {
-					notifyError(errorText(error));
+					toast.dismiss(exportingToast);
+					notifyError(errorText(error) || t("pdf.exportAnnotatedPdfFailed"));
 				}
 			},
 		};
