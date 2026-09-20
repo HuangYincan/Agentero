@@ -155,6 +155,7 @@ export function createPlaceholderTab(
 		notesKey: 0,
 		excalidrawKey: 0,
 		textKey: 0,
+		pinned: isLibrary,
 		loaded: false,
 	};
 }
@@ -269,6 +270,10 @@ export function removeTabsUnderPath(
 	const survivors: DocTab[] = [];
 	const removed: DocTab[] = [];
 	for (const t of prev) {
+		if (t.pinned) {
+			survivors.push(t);
+			continue;
+		}
 		if (isLibraryVirtualPath(t.path) || isPlazaVirtualPath(t.path)) {
 			survivors.push(t);
 			continue;

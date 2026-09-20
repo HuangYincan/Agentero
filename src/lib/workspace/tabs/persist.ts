@@ -30,12 +30,24 @@ function isCenterViewMode(v: unknown): v is CenterViewMode {
 }
 
 export function panelPersistParams(tab: DocTab): PanelPersistParams {
-	return { panelId: tab.id, path: tab.path, mode: tab.mode, title: tab.title };
+	return {
+		panelId: tab.id,
+		path: tab.path,
+		mode: tab.mode,
+		title: tab.title,
+		...(tab.pinned ? { pinned: true } : {}),
+	};
 }
 
 type LayoutPanelState = {
 	id?: string;
-	params?: { panelId?: string; path?: string; mode?: string; title?: string };
+	params?: {
+		panelId?: string;
+		path?: string;
+		mode?: string;
+		title?: string;
+		pinned?: boolean;
+	};
 };
 
 type LayoutLeafData = {
@@ -110,9 +122,13 @@ export function extractTabsFromLayout(layout: unknown): {
 			typeof panel.params?.title === "string" && panel.params.title.trim()
 				? panel.params.title
 				: undefined;
+		const pinned =
+			typeof panel.params?.pinned === "boolean"
+				? panel.params.pinned
+				: undefined;
 		if (seen.has(panelId)) continue;
 		seen.add(panelId);
-		tabs.push({ id: panelId, path, mode, title });
+		tabs.push({ id: panelId, path, mode, title, pinned });
 	}
 	const activeId = findActivePanelIdInLayout(l);
 	return {

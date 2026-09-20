@@ -22,7 +22,7 @@ import {
 	type IDockviewPanel,
 	type IDockviewPanelProps,
 } from "dockview-react";
-import { FileCode2, X } from "lucide-react";
+import { FileCode2, Pin, X } from "lucide-react";
 import {
 	type ComponentProps,
 	createContext,
@@ -57,6 +57,7 @@ import { installDockviewDragSelectionGuard } from "@/lib/workspace/dockview-drag
 import { installDockviewDropOverlayCleanup } from "@/lib/workspace/dockview-drop-overlay-cleanup";
 import { installDockviewSashFrameLoop } from "@/lib/workspace/dockview-sash";
 import { agenteroDockTheme } from "@/lib/workspace/dockview-theme";
+import { updateTab } from "@/lib/workspace/store";
 import {
 	isSplitDragPayload,
 	readDraggedVaultPaths,
@@ -196,6 +197,7 @@ function WorkspaceTab({
 	const [title, setTitle] = useState(api.title);
 	const middleClickRef = useRef(false);
 	const tab = tabsById.get(api.id) ?? null;
+	const pinned = Boolean(tab?.pinned);
 	const canToggleHtml =
 		tab?.paperMeta?.type !== "html" &&
 		Boolean(tab?.htmlUrl) &&
@@ -215,17 +217,34 @@ function WorkspaceTab({
 		},
 		[api.id, onToggleHtmlMode],
 	);
+	const togglePinned = useCallback(
+		(event: React.MouseEvent) => {
+			event.preventDefault();
+			event.stopPropagation();
+			updateTab(api.id, { pinned: !pinned });
+		},
+		[api.id, pinned],
+	);
+	const handleCloseClick = useCallback(() => {
+		if (pinned) {
+			updateTab(api.id, { pinned: false });
+			return;
+		}
+		close();
+	}, [api.id, close, pinned]);
 
 	return (
 		<div
 			{...rest}
-			className="dv-default-tab"
+			className="dv-default-tab group"
 			onPointerDown={(event) => {
 				middleClickRef.current = event.button === 1;
 				onPointerDown?.(event);
 			}}
 			onPointerUp={(event) => {
-				if (middleClickRef.current && event.button === 1) close();
+				if (middleClickRef.current && event.button === 1 && !pinned) {
+					close();
+				}
 				middleClickRef.current = false;
 				onPointerUp?.(event);
 			}}
@@ -234,6 +253,28 @@ function WorkspaceTab({
 				onPointerLeave?.(event);
 			}}
 		>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<button
+						type="button"
+						className={cn(
+							"dv-default-tab-action",
+							!pinned && "opacity-0 group-hover:opacity-100",
+						)}
+						aria-label={pinned ? t("tabs.unpin") : t("tabs.pin")}
+						onPointerDown={(event) => {
+							event.preventDefault();
+							event.stopPropagation();
+						}}
+						onClick={togglePinned}
+					>
+						<Pin className={cn("size-3.5", pinned && "fill-current")} />
+					</button>
+				</TooltipTrigger>
+				<TooltipContent side="bottom">
+					{pinned ? t("tabs.unpin") : t("tabs.pin")}
+				</TooltipContent>
+			</Tooltip>
 			<span className="dv-default-tab-content">
 				<MathText text={title ?? ""} />
 			</span>
@@ -263,9 +304,13 @@ function WorkspaceTab({
 			<button
 				type="button"
 				className="dv-default-tab-action"
-				aria-label={t("tabs.close", { title })}
+				aria-label={
+					pinned
+						? t("tabs.unpinToClose", { title })
+						: t("tabs.close", { title })
+				}
 				onPointerDown={(event) => event.preventDefault()}
-				onClick={() => close()}
+				onClick={handleCloseClick}
 			>
 				<X className="size-3.5" />
 			</button>
@@ -925,9 +970,21 @@ export const DockWorkspace = memo(
 				}
 				menu.push(
 					buildTabContextMenuItem({
-						label: t("tabs.contextClose"),
+						label: tab?.pinned ? t("tabs.unpin") : t("tabs.pin"),
+						action: () => updateTab(panel.id, { pinned: !tab?.pinned }),
+					}),
+					"separator",
+					buildTabContextMenuItem({
+						label: tab?.pinned
+							? t("tabs.contextUnpinAndClose")
+							: t("tabs.contextClose"),
 						shortcut: formatShortcutById("closeTab"),
-						action: () => panel.api.close(),
+						action: () => {
+							if (tab?.pinned) {
+								updateTab(panel.id, { pinned: false });
+							}
+							panel.api.close();
+						},
 					}),
 					{
 						label: t("tabs.contextCloseOthers"),

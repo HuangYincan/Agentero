@@ -25,6 +25,7 @@ import {
 	isPaperDirectory,
 	isRemoteArxivPath,
 	isUnderPaperAttachments,
+	isUnderPapers,
 	localFileToArrayBuffer,
 	paperDirFromPath,
 	type RemotePaperItem,
@@ -479,6 +480,7 @@ function rememberClosedTabs(idsToClose: readonly string[]): void {
 		closing
 			.filter(
 				(tab) =>
+					!tab.pinned &&
 					!companionIds.has(tab.id) &&
 					!isLibraryVirtualPath(tab.path) &&
 					!isTrashVirtualPath(tab.path),
@@ -1008,8 +1010,15 @@ export function openPaper(paperDir: string): void {
 	setTreeSelectedPath(abs);
 	if (loadSettings().replaceCurrentTabOnOpenPaper) {
 		const activeId = getActiveTabId();
-		if (activeId && !getTabs().some((t) => t.id === tabIdForPath(abs))) {
-			closeTab(activeId, { remember: false });
+		const activeTab = activeId
+			? getTabs().find((t) => t.id === activeId)
+			: null;
+		if (
+			activeTab &&
+			!activeTab.pinned &&
+			!getTabs().some((t) => t.id === tabIdForPath(abs))
+		) {
+			closeTab(activeTab.id, { remember: false });
 		}
 	}
 	openTab(abs, { preferMode: "pdf" });
@@ -1815,6 +1824,38 @@ export function hydratePlaceholderTabs(tabIds: readonly string[]): void {
 			}
 		})();
 	}
+}
+
+/**
+ * After the vault tree finishes loading, some restored paper tabs may have been
+ * misclassified as Library because `paperFolders` was still empty during the
+ * first hydration. Reset those tabs to placeholders and hydrate them again.
+ */
+export function rehydrateMisclassifiedPaperTabs(): void {
+	if (!isTauri() || !getVaultPath()) return;
+	const { paperFolders } = vaultStore.getState();
+	if (!paperFolders.length) return;
+
+	const ids: string[] = [];
+	for (const tab of getTabs()) {
+		if (!tab.loaded || tab.kind !== "library") continue;
+		if (
+			isLibraryVirtualPath(tab.path) ||
+			isTrashVirtualPath(tab.path) ||
+			isPlazaVirtualPath(tab.path)
+		) {
+			continue;
+		}
+		if (!isUnderPapers(tab.path)) continue;
+		if (paperDirFromPath(tab.path, paperFolders)) {
+			ids.push(tab.id);
+		}
+	}
+	if (!ids.length) return;
+
+	for (const id of ids) placeholderLoads.delete(id);
+	for (const id of ids) updateTab(id, { loaded: false });
+	hydratePlaceholderTabs(ids);
 }
 
 /** Library tree node: full library scope, single Library tab. */

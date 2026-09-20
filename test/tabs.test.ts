@@ -64,6 +64,12 @@ describe("createPlaceholderTab", () => {
 		expect(tab.kind).toBe("library");
 		expect(tab.title).toBe("Library");
 		expect(tab.mode).toBe("markdown");
+		expect(tab.pinned).toBe(true);
+	});
+
+	it("does not pin plain file placeholders", () => {
+		const tab = createPlaceholderTab("/vault/a.md");
+		expect(tab.pinned).toBeFalsy();
 	});
 });
 
@@ -195,6 +201,16 @@ describe("removeTabsUnderPath", () => {
 		const { tabs, removed } = removeTabsUnderPath(start, "/vault/z");
 		expect(tabs).toBe(start);
 		expect(removed).toHaveLength(0);
+	});
+
+	it("keeps pinned tabs even when their path matches", () => {
+		const start = [
+			makeTab("/vault/papers/x", { pinned: true }),
+			makeTab("/vault/papers/x/NOTES.md"),
+		];
+		const { tabs, removed } = removeTabsUnderPath(start, "/vault/papers/x");
+		expect(tabs.map((t) => t.id)).toEqual(["/vault/papers/x"]);
+		expect(removed).toHaveLength(1);
 	});
 });
 
@@ -398,6 +414,31 @@ describe("extractTabsFromLayout", () => {
 			},
 		]);
 	});
+
+	it("carries pinned state from panel params", () => {
+		const layout = {
+			panels: {
+				"/vault/a.md": {
+					id: "/vault/a.md",
+					params: {
+						panelId: "/vault/a.md",
+						path: "/vault/a.md",
+						mode: "markdown",
+						pinned: true,
+					},
+				},
+			},
+		};
+		const extracted = extractTabsFromLayout(layout);
+		expect(extracted.tabs).toEqual([
+			{
+				id: "/vault/a.md",
+				path: "/vault/a.md",
+				mode: "markdown",
+				pinned: true,
+			},
+		]);
+	});
 });
 
 describe("panelPersistParams", () => {
@@ -412,6 +453,15 @@ describe("panelPersistParams", () => {
 			mode: "markdown",
 			title: "Attention Is All You Need",
 		});
+	});
+
+	it("includes pinned only when true", () => {
+		const pinned = makeTab("/vault/a.md", { pinned: true });
+		expect(panelPersistParams(pinned)).toEqual(
+			expect.objectContaining({ pinned: true }),
+		);
+		const unpinned = makeTab("/vault/a.md");
+		expect(panelPersistParams(unpinned)).not.toHaveProperty("pinned");
 	});
 });
 
@@ -638,5 +688,21 @@ describe("flat workspace helpers", () => {
 		expect(readingPairCloseIds(open, notes.id)).toEqual([notes.id]);
 		expect(readingPairCloseIds([paper], paper.id)).toEqual([paper.id]);
 		expect(readingPairCloseIds([notes], notes.id)).toEqual([notes.id]);
+	});
+
+	it("readingPairCloseIds keeps pinned tabs open", () => {
+		const paper = makeTab("/vault/p", {
+			kind: "paper",
+			mode: "pdf",
+			notesPath: "/vault/p/NOTES.md",
+			paperMeta: { path: "p", title: "P" } as DocTab["paperMeta"],
+		});
+		const notes = createNotesSplitPane(paper);
+		expect(notes).not.toBeNull();
+		if (!notes) return;
+		const pinnedNotes = { ...notes, pinned: true };
+		const open = [paper, pinnedNotes];
+		expect(readingPairCloseIds(open, paper.id)).toEqual([paper.id]);
+		expect(readingPairCloseIds(open, pinnedNotes.id)).toEqual([]);
 	});
 });

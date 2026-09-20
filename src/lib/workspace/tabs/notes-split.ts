@@ -142,8 +142,13 @@ export function findReadingCompanion(
 export function readingPairCloseIds(tabs: DocTab[], id: string): string[] {
 	const tab = tabs.find((t) => t.id === id) ?? null;
 	const companion = findReadingCompanion(tabs, tab);
-	if (!companion || companion.id === id) return [id];
+	if (!companion || companion.id === id) {
+		return tab?.pinned ? [] : [id];
+	}
 	// Companion first so body/NOTES order is stable for tests and revoke order.
+	if (tab?.pinned && companion.pinned) return [];
+	if (tab?.pinned) return [companion.id];
+	if (companion.pinned) return [id];
 	return [companion.id, id];
 }
 
