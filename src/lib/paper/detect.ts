@@ -288,6 +288,16 @@ export async function detectPaperDirectory(path: string): Promise<boolean> {
 		await readVaultFile(notesPathForPaper(path));
 		return true;
 	} catch {
+		// Fall through to PAPER.md probe.
+	}
+	// Tree markers treat PAPER.md as a paper marker; align path-only detection
+	// so paper folders without NOTES.md (e.g. freshly imported) still restore.
+	try {
+		await readVaultFile(
+			notesPathForPaper(path).replace(/NOTES\.md$/i, "PAPER.md"),
+		);
+		return true;
+	} catch {
 		return false;
 	}
 }
