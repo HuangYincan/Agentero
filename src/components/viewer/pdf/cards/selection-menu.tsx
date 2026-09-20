@@ -40,7 +40,6 @@ const BAR_H = 32;
  * The bar is pinned by its right edge so expanding colors only grow left —
  * action buttons never shift.
  * Annotate lives on the right-rail selection comment chip instead.
- * Selected text is copied to the clipboard automatically.
  * `showHighlight` / `showTranslate` hide the persistent actions on surfaces
  * without marks/ (remote papers, proxied web pages).
  */

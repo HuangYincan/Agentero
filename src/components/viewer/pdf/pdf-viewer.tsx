@@ -602,7 +602,6 @@ function PdfViewerInner({
 		isSelecting,
 		closeSelectionMenu,
 		rePlaceSelectionMenu,
-		copiedLabelPos,
 	} = usePdfTextSelection({
 		selectionCap,
 		docCap,
@@ -1691,7 +1690,6 @@ function PdfViewerInner({
 						showHighlight: !isRemotePaper && !plainViewer,
 						showTranslate: !isRemotePaper && !plainViewer,
 					}}
-					copiedLabelPos={copiedLabelPos}
 					citationPreview={{
 						state: citationPreview,
 						importMenu: citationImport

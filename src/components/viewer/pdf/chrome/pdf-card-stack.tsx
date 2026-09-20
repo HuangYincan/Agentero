@@ -1,6 +1,5 @@
 import { AnimatePresence } from "motion/react";
 import { createPortal } from "react-dom";
-import { SelectionCopiedLabel } from "@/components/ui/selection-copied-label";
 import { AskPopover } from "@/components/viewer/pdf/cards/ask-popover";
 import {
 	type CitationPreviewImportMenu,
@@ -32,8 +31,6 @@ type PdfCardStackProps = {
 		showHighlight?: boolean;
 		showTranslate?: boolean;
 	};
-	/** Transient screen position for the auto-copy confirmation label. */
-	copiedLabelPos: { x: number; y: number } | null;
 	citationPreview: {
 		state: CitationPreviewState | null;
 		importMenu?: CitationPreviewImportMenu;
@@ -85,7 +82,6 @@ type PdfCardStackProps = {
  */
 export function PdfCardStack({
 	selectionMenu,
-	copiedLabelPos,
 	citationPreview,
 	crossrefPreview,
 	cardScreen,
@@ -109,10 +105,6 @@ export function PdfCardStack({
 					showHighlight={selectionMenu.showHighlight}
 					showTranslate={selectionMenu.showTranslate}
 				/>
-			) : null}
-
-			{copiedLabelPos ? (
-				<SelectionCopiedLabel x={copiedLabelPos.x} y={copiedLabelPos.y} />
 			) : null}
 
 			{citationPreview.state ? (
