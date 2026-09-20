@@ -15,6 +15,7 @@ import {
 	useRef,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { usePromptInputAttachments } from "@/components/ai-elements/prompt-input";
 import { useImeGuard } from "@/hooks/use-ime-guard";
 import { AGENT_COMPOSER_INPUT_ATTR } from "@/lib/agent/composer-focus";
 import {
@@ -26,6 +27,7 @@ import {
 	parseInlineTokenParts,
 	stripInlineTokens,
 } from "@/lib/agent/composer-inline-tokens";
+import { filesFromDataTransfer } from "@/lib/core/file-accept";
 import { isImeKeyboardEvent } from "@/lib/core/ime";
 import { basenameOf } from "@/lib/core/path";
 import { cn, truncateToChars } from "@/lib/core/utils";
@@ -545,6 +547,7 @@ export const ComposerInlineInput = forwardRef<
 		ref,
 	) => {
 		const { t } = useTranslation("agent");
+		const attachments = usePromptInputAttachments();
 		const editorRef = useRef<HTMLDivElement>(null);
 		/** null until first paint so the initial `value` always hydrates into the DOM. */
 		const lastValueRef = useRef<string | null>(null);
@@ -806,6 +809,11 @@ export const ComposerInlineInput = forwardRef<
 
 		const handlePaste = (event: ClipboardEvent<HTMLDivElement>) => {
 			event.preventDefault();
+			const files = filesFromDataTransfer(event.clipboardData);
+			if (attachments.enabled && files.length > 0) {
+				attachments.add(files);
+				return;
+			}
 			const text = event.clipboardData.getData("text/plain");
 			if (!text) return;
 			document.execCommand("insertText", false, text);
