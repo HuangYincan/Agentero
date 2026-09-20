@@ -43,6 +43,21 @@ function visualTrace(opts: {
 }
 
 describe("buildMarksIndex", () => {
+	it("keeps an uncommented crop reachable after the temporary editor closes", () => {
+		const index = buildMarksIndex({
+			highlights: [],
+			highlightAnchors: new Map(),
+			askPinAnchors: [],
+			translatePinAnchors: [],
+			visualTraces: [visualTrace({ id: "crop", page: 1, y: 0.4, comment: "" })],
+			pageTextMap: new Map(),
+			paperTitle: undefined,
+		});
+		expect(index.commentsByPage.get(1)).toEqual([
+			expect.objectContaining({ id: "crop", kind: "visual", comment: "" }),
+		]);
+	});
+
 	it("omits messages for visual comments without an agent conversation", () => {
 		const index = buildMarksIndex({
 			highlights: [],

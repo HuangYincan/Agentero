@@ -123,10 +123,9 @@ export function buildMarksIndex({
 	for (const trace of visualTraces) {
 		const hasAgent = Boolean(trace.agent);
 		const hasComment = trace.comment.trim().length > 0;
-		// Visual marks with a user note get a comment-rail card. Marks that only
-		// carry an Agent conversation (no note) rely on the gutter pin to open
-		// the chat record, so they don't clutter the rail with an empty card.
-		if (hasComment) {
+		// Keep fresh crops reachable after the editor blurs so their add-to-chat
+		// action does not disappear. Agent-only marks use the conversation pin.
+		if (hasComment || !hasAgent) {
 			const entry: PageAnnotationComment = {
 				id: trace.id,
 				pageIndex: trace.page - 1,
