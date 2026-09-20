@@ -24,7 +24,7 @@ Release 中区分两类资产：
 
 | 类型 | 命名规范 | 示例 |
 |---|---|---|
-| 桌面安装包 | `Agentero_<version>_<arch>.<format>` | `Agentero_0.3.2_aarch64.dmg` |
+| 桌面安装包 | `Agentero_<version>_<arch>.<format>` | `Agentero_0.3.2_aarch64.dmg`、`Agentero_0.3.2_x86_64.dmg` |
 | CLI 归档 | `agentero-cli-<version>-<rust-host>.<archive>` | `agentero-cli-0.3.2-aarch64-apple-darwin.tar.gz` |
 | CLI 校验文件 | `<CLI 归档文件名>.sha256` | `agentero-cli-0.3.2-aarch64-apple-darwin.tar.gz.sha256` |
 
