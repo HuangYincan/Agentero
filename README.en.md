@@ -218,3 +218,8 @@ This project is licensed under the [MIT License](LICENSE).
 ## Acknowledgements
 
 Thanks to the [LinuxDo](https://linux.do/) and [ModelScope](https://modelscope.cn/) communities for their support and feedback.
+
+Thank all of the contributors!
+
+![contributors img Made with contrib.rocks](https://contrib.rocks/image?repo=poco-ai/Agentero)
+
