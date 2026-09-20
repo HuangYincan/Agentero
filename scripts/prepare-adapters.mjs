@@ -23,6 +23,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+const NPM_BIN = process.platform === "win32" ? "npm.cmd" : "npm";
+
 const ADAPTERS = [
 	{
 		id: "claude-acp",
@@ -132,7 +134,7 @@ try {
 		`[prepare-adapters] npm install (one tree so shared deps dedupe) in ${tmp}`,
 	);
 	execFileSync(
-		"npm",
+		NPM_BIN,
 		[
 			"install",
 			"--omit=optional",
