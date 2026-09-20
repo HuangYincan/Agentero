@@ -208,18 +208,35 @@ pub fn rename_path(db_path: &Path, vault: &str, from: &str, to: &str) -> Result<
             params![from, to, like, vault, from_paper, to_paper],
         )
         .map_err(|e| AppError::message(format!("rename usage_events: {e}")))?;
-    let daily = tx
-        .execute(
-            "UPDATE usage_daily
-             SET paper_path = CASE
-               WHEN paper_path = ?1 THEN ?2
-               WHEN paper_path LIKE ?1 || '/%' THEN ?2 || substr(paper_path, length(?1) + 1)
-               ELSE paper_path
-             END
-             WHERE vault = ?3 AND (paper_path = ?1 OR paper_path LIKE ?1 || '/%')",
-            params![from_paper, to_paper, vault],
-        )
-        .map_err(|e| AppError::message(format!("rename usage_daily: {e}")))?;
+    let daily = if from_paper != to_paper {
+        let merged = tx
+            .execute(
+                "INSERT INTO usage_daily (day, vault, kind, paper_path, facet, count, dur_ms, qty)
+                 SELECT day, vault, kind,
+                   CASE
+                     WHEN paper_path = ?1 THEN ?2
+                     WHEN paper_path LIKE ?1 || '/%' THEN ?2 || substr(paper_path, length(?1) + 1)
+                     ELSE paper_path
+                   END,
+                   facet, count, dur_ms, qty
+                 FROM usage_daily
+                 WHERE vault = ?3 AND (paper_path = ?1 OR paper_path LIKE ?1 || '/%')
+                 ON CONFLICT(day, vault, kind, paper_path, facet) DO UPDATE SET
+                   count = usage_daily.count + excluded.count,
+                   dur_ms = usage_daily.dur_ms + excluded.dur_ms,
+                   qty = usage_daily.qty + excluded.qty",
+                params![from_paper, to_paper, vault],
+            )
+            .map_err(|e| AppError::message(format!("rename usage_daily: {e}")))?;
+        let _ = tx.execute(
+            "DELETE FROM usage_daily
+             WHERE vault = ?2 AND (paper_path = ?1 OR paper_path LIKE ?1 || '/%')",
+            params![from_paper, vault],
+        );
+        merged
+    } else {
+        0
+    };
     tx.commit()
         .map_err(|e| AppError::message(format!("usage rename commit: {e}")))?;
     Ok((events + daily) as u64)
@@ -286,6 +303,22 @@ mod tests {
         assert!(rows
             .iter()
             .all(|r| r.paper_path.as_deref() == Some("papers/new")));
+        let _ = fs::remove_dir_all(db.parent().unwrap());
+    }
+
+    #[test]
+    fn rename_merges_when_target_already_exists() {
+        let db = temp_db();
+        record_events(
+            &db,
+            &[
+                rec("paper.open", "papers/old"),
+                rec("paper.open", "papers/new"),
+            ],
+        )
+        .unwrap();
+        let res = rename_path(&db, "/vaults/demo", "papers/old", "papers/new");
+        assert!(res.is_ok());
         let _ = fs::remove_dir_all(db.parent().unwrap());
     }
 }

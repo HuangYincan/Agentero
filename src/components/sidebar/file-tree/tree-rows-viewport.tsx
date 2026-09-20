@@ -3,7 +3,7 @@
  * to its renderer (virtual rows, inline drafts, paper leaves, files/folders).
  */
 import type { Virtualizer } from "@tanstack/react-virtual";
-import { FolderIcon } from "lucide-react";
+import { FolderIcon, ScrollText } from "lucide-react";
 import type { ReactNode } from "react";
 import { contextPathIcon } from "@/lib/agent/context-path-icon";
 import {
@@ -93,13 +93,17 @@ function PaperLeafRow({
 function RenameRow({
 	node,
 	ctx,
+	isPaper,
 }: {
 	node: FileNode;
 	ctx: RowContext;
+	isPaper?: boolean;
 }): ReactNode {
 	if (!ctx.renameDraft) return null;
 	let icon: ReactNode;
-	if (node.kind === "directory") {
+	if (isPaper) {
+		icon = <ScrollText className="size-4 shrink-0 text-muted-foreground" />;
+	} else if (node.kind === "directory") {
 		icon = <FolderIcon className="size-4 text-blue-500" />;
 	} else {
 		const Icon = contextPathIcon(node.name);
@@ -123,9 +127,8 @@ function renderRow(row: FlatRow, props: TreeRowsViewportProps): ReactNode {
 		return <PlazaRow expanded={props.expanded.has(PLAZA_VIRTUAL_PATH)} />;
 	if (row.kind === "plazaSource") return <PlazaSourceRow source={row.source} />;
 	if (row.kind === "create") return props.createRow;
-	// Paper folders are leaves and keep their action buttons while renaming.
 	if (props.renameDraft?.path === row.node.path) {
-		return row.paperLeaf ? null : <RenameRow node={row.node} ctx={props} />;
+		return <RenameRow node={row.node} ctx={props} isPaper={row.paperLeaf} />;
 	}
 	if (row.paperLeaf) return <PaperLeafRow node={row.node} ctx={props} />;
 	return (

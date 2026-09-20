@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { LIBRARY_VIRTUAL_PATH } from "@/lib/paper/api";
+import { syncUpdatedPaperTabs } from "@/lib/workspace/actions";
+import { getTabs, setTabs } from "@/lib/workspace/store";
 import {
 	createNotesSplitPane,
 	createPlaceholderTab,
@@ -704,5 +706,63 @@ describe("flat workspace helpers", () => {
 		const open = [paper, pinnedNotes];
 		expect(readingPairCloseIds(open, paper.id)).toEqual([paper.id]);
 		expect(readingPairCloseIds(open, pinnedNotes.id)).toEqual([]);
+	});
+
+	it("syncUpdatedPaperTabs updates paper tab title and metadata while preserving notes title", () => {
+		const vault = "/vault";
+		const paperTab = makeTab("/vault/papers/test-paper", {
+			kind: "paper",
+			title: "Old Paper Title",
+			mode: "pdf",
+			notesPath: "/vault/papers/test-paper/NOTES.md",
+			paperMeta: {
+				id: "paper-1",
+				path: "papers/test-paper",
+				title: "Old Paper Title",
+			} as DocTab["paperMeta"],
+		});
+		const notesTab = makeTab("/vault/papers/test-paper/NOTES.md", {
+			kind: "file",
+			title: "Notes",
+			mode: "markdown",
+			notesPath: "/vault/papers/test-paper/NOTES.md",
+			paperMeta: {
+				id: "paper-1",
+				path: "papers/test-paper",
+				title: "Old Paper Title",
+			} as DocTab["paperMeta"],
+		});
+		const otherTab = makeTab("/vault/notes/todo.md", {
+			kind: "file",
+			title: "todo.md",
+			mode: "markdown",
+		});
+
+		setTabs([paperTab, notesTab, otherTab]);
+
+		syncUpdatedPaperTabs(
+			vault,
+			"papers/test-paper",
+			{
+				title: "Brand New Paper Title",
+				year: 2026,
+			},
+			"paper-1",
+		);
+
+		const updated = getTabs();
+		const updatedPaper = updated.find((t) => t.id === paperTab.id);
+		const updatedNotes = updated.find((t) => t.id === notesTab.id);
+		const updatedOther = updated.find((t) => t.id === otherTab.id);
+
+		expect(updatedPaper?.title).toBe("Brand New Paper Title");
+		expect(updatedPaper?.paperMeta?.title).toBe("Brand New Paper Title");
+		expect(updatedPaper?.paperMeta?.year).toBe(2026);
+
+		expect(updatedNotes?.title).toBe("Notes");
+		expect(updatedNotes?.paperMeta?.title).toBe("Brand New Paper Title");
+		expect(updatedNotes?.paperMeta?.year).toBe(2026);
+
+		expect(updatedOther?.title).toBe("todo.md");
 	});
 });
