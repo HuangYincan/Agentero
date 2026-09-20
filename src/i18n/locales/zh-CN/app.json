@@ -26,6 +26,7 @@
 		"catVault": "Vault",
 		"catLibrary": "论文库",
 		"catTab": "标签",
+		"catPdf": "PDF",
 		"settingsOpen": "打开设置",
 		"settingsClose": "关闭设置",
 		"vaultOpen": "打开 Vault…",
@@ -47,6 +48,7 @@
 		"tabSplitPane": "向右分栏",
 		"tabNext": "下一标签",
 		"tabPrev": "上一标签",
+		"exportAnnotatedPdf": "导出带批注的 PDF",
 		"wandOpen": "魔棒（按标识符入库）"
 	},
 	"titlebar": {

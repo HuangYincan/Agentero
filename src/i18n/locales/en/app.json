@@ -26,6 +26,7 @@
 		"catVault": "Vault",
 		"catLibrary": "Library",
 		"catTab": "Tab",
+		"catPdf": "PDF",
 		"settingsOpen": "Open Settings",
 		"settingsClose": "Close Settings",
 		"vaultOpen": "Open Vault…",
@@ -47,6 +48,7 @@
 		"tabSplitPane": "Split Pane Right",
 		"tabNext": "Next Tab",
 		"tabPrev": "Previous Tab",
+		"exportAnnotatedPdf": "Export Annotated PDF",
 		"wandOpen": "Magic Wand (Import by ID)"
 	},
 	"titlebar": {

@@ -31,6 +31,8 @@ import {
 	selectLibrary,
 	splitActivePane,
 } from "@/lib/workspace/actions";
+import { getActiveTab } from "@/lib/workspace/store";
+import { resolveActivePdfHandle } from "@/lib/workspace/viewer/pdf-viewer-registry";
 
 const hasVault = () => Boolean(getVaultPath());
 
@@ -180,6 +182,17 @@ export const paletteCommands: AppCommand[] = [
 		titleKey: "commands.tabPrev",
 		categoryKey: "commands.catTab",
 		run: () => cycleActiveTab(-1),
+	},
+	{
+		id: "pdf.exportAnnotatedPdf",
+		titleKey: "commands.exportAnnotatedPdf",
+		categoryKey: "commands.catPdf",
+		keywords: ["export", "pdf", "annotated", "highlight", "comment"],
+		when: () => getActiveTab()?.mode === "pdf",
+		run: () => {
+			const handle = resolveActivePdfHandle();
+			if (handle) void handle.exportAnnotatedPdf();
+		},
 	},
 	{
 		id: "wand.open",

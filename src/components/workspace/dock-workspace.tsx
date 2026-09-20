@@ -45,6 +45,8 @@ import {
 } from "@/components/ui/tooltip";
 import { DocView, type DocViewProps } from "@/components/workspace/doc-view";
 import { AgenteroTabGroupChip } from "@/components/workspace/tab-group-chip";
+import { errorText } from "@/lib/core/error";
+import { notifyError } from "@/lib/core/notify";
 import { cn } from "@/lib/core/utils";
 import { isLibraryVirtualPath, isTrashVirtualPath } from "@/lib/paper/api";
 import { moveDocToWindow } from "@/lib/shell/leaf";
@@ -68,6 +70,7 @@ import {
 	tabNotesEligible,
 } from "@/lib/workspace/tabs";
 import { type CenterViewMode, isTexPath } from "@/lib/workspace/viewer";
+import { pdfHandleFor } from "@/lib/workspace/viewer/pdf-viewer-registry";
 
 /** Grey + paper tag palette (same swatches as library tags). */
 const TAB_GROUP_COLORS = ["grey", ...TAG_COLOR_IDS] as const;
@@ -521,7 +524,7 @@ export const DockWorkspace = memo(
 		},
 		ref,
 	) {
-		const { t } = useTranslation("app");
+		const { t } = useTranslation(["app", "viewer"]);
 		const apiRef = useRef<DockviewApi | null>(null);
 		const workspaceRootRef = useRef<HTMLDivElement>(null);
 		const syncingRef = useRef(false);
@@ -906,6 +909,19 @@ export const DockWorkspace = memo(
 							void moveDocToWindow(tab.path, tab.mode);
 						},
 					});
+				}
+				if (tab?.mode === "pdf") {
+					const handle = pdfHandleFor(panel.id);
+					if (handle) {
+						menu.push({
+							label: t("viewer:pdf.exportAnnotatedPdf"),
+							action: () => {
+								handle
+									.exportAnnotatedPdf()
+									.catch((error: unknown) => notifyError(errorText(error)));
+							},
+						});
+					}
 				}
 				menu.push(
 					buildTabContextMenuItem({

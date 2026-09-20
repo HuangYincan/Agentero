@@ -102,7 +102,6 @@ import { buildMarksIndex } from "@/components/viewer/pdf/marks-index";
 import { PdfTranslationViewerInner } from "@/components/viewer/pdf/pdf-translation-viewer-inner";
 import type {
 	PageAnnotationComment,
-	PdfViewerHandle,
 	PdfViewerInnerProps,
 	PdfViewerProps,
 	RailEditState,
@@ -370,7 +369,6 @@ function PdfViewerInner({
 }: PdfViewerInnerProps) {
 	const { t } = useTranslation("viewer");
 	const [importBusy, setImportBusy] = useState(false);
-	const [exportBusy, setExportBusy] = useState(false);
 	const privacyHidden = usePdfPrivacy();
 	// Parent often passes inline lambdas; keep latest in refs so data effects
 	// do not re-fire every parent render (was Maximum update depth exceeded).
@@ -380,16 +378,6 @@ function PdfViewerInner({
 	onVisualTracesChangeRef.current = onVisualTracesChange;
 	const onHighlightsChangeRef = useRef(onHighlightsChange);
 	onHighlightsChangeRef.current = onHighlightsChange;
-	// Keep a local reference to the registered imperative handle so the toolbar
-	// can trigger exportAnnotatedPdf without going through the parent registry.
-	const pdfHandleRef = useRef<PdfViewerHandle | null>(null);
-	const handleOnHandle = useCallback(
-		(handle: PdfViewerHandle | null) => {
-			pdfHandleRef.current = handle;
-			onHandle?.(handle);
-		},
-		[onHandle],
-	);
 
 	const { engine } = usePdfEngineContext();
 	const { provides: zoom, state: zoomState } = useZoom(docId);
@@ -514,17 +502,6 @@ function PdfViewerInner({
 			setImportBusy(false);
 		}
 	}, [importIdentifier, importBusy]);
-
-	const handleExportAnnotatedPdf = useCallback(async () => {
-		const handle = pdfHandleRef.current;
-		if (!handle || exportBusy) return;
-		setExportBusy(true);
-		try {
-			await handle.exportAnnotatedPdf();
-		} finally {
-			setExportBusy(false);
-		}
-	}, [exportBusy]);
 
 	const { pageField, setPageField, pageFocusedRef, goToPage, commitPageField } =
 		usePdfNavigation({
@@ -1331,7 +1308,7 @@ function PdfViewerInner({
 		docId,
 		paperAbsPath,
 		defaultExportName,
-		onHandle: handleOnHandle,
+		onHandle,
 		annotationCap,
 		scrollRef,
 		engineRef,
@@ -1655,8 +1632,6 @@ function PdfViewerInner({
 					isRemotePaper={isRemotePaper}
 					onImportToLibrary={handleImportToLibrary}
 					importBusy={importBusy}
-					onExportAnnotatedPdf={handleExportAnnotatedPdf}
-					exportBusy={exportBusy}
 				/>
 			)}
 
