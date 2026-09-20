@@ -132,7 +132,10 @@ import {
 	type PdfLayoutRegion,
 	setFocusedLayoutRegion,
 } from "@/lib/pdf/layout";
-import type { ActiveSelectionCard } from "@/lib/pdf/selection";
+import {
+	type ActiveSelectionCard,
+	selectionAnchorKey,
+} from "@/lib/pdf/selection";
 import { PDF_ZOOM_MAX, PDF_ZOOM_MIN } from "@/lib/pdf/zoom";
 
 export type {
@@ -1186,19 +1189,36 @@ function PdfViewerInner({
 		paperAbsPath,
 	});
 
-	const autoTranslatedSelectionRef = useRef<typeof selectionMenu>(null);
+	const autoTranslatedSelectionRef = useRef<string | null>(null);
+
+	// A new drag-select is a fresh intent even when it covers text that was
+	// already auto-translated: the anchor key alone would collide with the last
+	// run and silently skip the new selection.
+	useEffect(() => {
+		if (isSelecting) autoTranslatedSelectionRef.current = null;
+	}, [isSelecting]);
 
 	// When enabled, translate as soon as text extraction has produced a usable
 	// selection anchor. Keep the toolbar open so the other selection actions stay
 	// available while the result card streams beside it.
+	//
+	// Keyed on the anchor, not on the menu object: re-placing the menu on scroll
+	// replaces the object (its `screen` moved) while keeping the anchor, so a
+	// menu-identity key re-translated once per wheel tick and stacked a 文A pin
+	// per tick.
 	useEffect(() => {
-		const quote = selectionMenu?.anchor.quote?.trim();
-		if (!selectionMenu || plainViewer || !autoTranslateSelection || !quote) {
+		const anchorKey = selectionAnchorKey(selectionMenu?.anchor);
+		if (
+			!selectionMenu ||
+			plainViewer ||
+			!autoTranslateSelection ||
+			!anchorKey
+		) {
 			autoTranslatedSelectionRef.current = null;
 			return;
 		}
-		if (autoTranslatedSelectionRef.current === selectionMenu) return;
-		autoTranslatedSelectionRef.current = selectionMenu;
+		if (autoTranslatedSelectionRef.current === anchorKey) return;
+		autoTranslatedSelectionRef.current = anchorKey;
 		translateSelection(selectionMenu.anchor);
 	}, [autoTranslateSelection, plainViewer, selectionMenu, translateSelection]);
 

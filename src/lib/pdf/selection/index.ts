@@ -1,3 +1,4 @@
+export { selectionAnchorKey } from "@/lib/pdf/selection/anchor-key";
 export { marksDir } from "@/lib/pdf/selection/marks-io";
 export type {
 	NormalizedRect,
