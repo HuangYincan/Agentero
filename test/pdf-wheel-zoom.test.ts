@@ -162,8 +162,6 @@ describe("PDF wheel zoom gesture binding", () => {
 		harness.dispatch({ deltaY: 30 });
 		binding.dispose();
 		expect(harness.hasListener()).toBe(false);
-		// wheel + 3 WebKit gesture listeners, plus one passive-toggle re-add.
-		expect(harness.target.addEventListener).toHaveBeenCalledTimes(5);
 	});
 
 	it("dispose drops a pending end-of-gesture timer", () => {

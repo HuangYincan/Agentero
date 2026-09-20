@@ -55,11 +55,14 @@ export type ZoomGestureBindingOptions = {
  * scroll gesture starts and comes back once the wheel stream goes idle. A pinch
  * that begins mid-scroll still zooms; only that first tick keeps its default.
  *
- * On WebKit (Safari / macOS WKWebView) trackpad pinch never arrives as
- * ctrl+wheel; it is delivered as gesturestart/gesturechange/gestureend
- * instead. Those are default-prevented so the platform magnify is suppressed
- * and reported through the same start/change/end callbacks, with the scale
- * ratio measured against the start of the gesture.
+ * Delivery of a pinch differs per engine. On WebKit (Safari / macOS WKWebView)
+ * it never arrives as ctrl+wheel — it comes as
+ * gesturestart/gesturechange/gestureend instead. Those are default-prevented so
+ * the platform magnify is suppressed and reported through the same
+ * start/change/end callbacks, with the scale
+ * ratio measured against the start of the gesture. On WebView2 (Windows) a
+ * trackpad pinch never reaches the page at all: the renderer consumes it in the
+ * compositor, so only the Ctrl/Cmd+wheel path applies there.
  */
 export function bindZoomGesture({
 	target,
