@@ -79,7 +79,6 @@ import { usePdfOutline } from "@/components/viewer/pdf/hooks/use-pdf-outline";
 import { usePdfPageText } from "@/components/viewer/pdf/hooks/use-pdf-page-text";
 import { usePdfPaperTone } from "@/components/viewer/pdf/hooks/use-pdf-paper-tone";
 import { usePdfPinAnchors } from "@/components/viewer/pdf/hooks/use-pdf-pin-anchors";
-import { usePdfPrivacy } from "@/components/viewer/pdf/hooks/use-pdf-privacy";
 import { usePdfRegionFraming } from "@/components/viewer/pdf/hooks/use-pdf-region-framing";
 import { usePdfScrollSync } from "@/components/viewer/pdf/hooks/use-pdf-scroll-sync";
 import { usePdfSelectionActions } from "@/components/viewer/pdf/hooks/use-pdf-selection-actions";
@@ -369,7 +368,6 @@ function PdfViewerInner({
 }: PdfViewerInnerProps) {
 	const { t } = useTranslation("viewer");
 	const [importBusy, setImportBusy] = useState(false);
-	const privacyHidden = usePdfPrivacy();
 	// Parent often passes inline lambdas; keep latest in refs so data effects
 	// do not re-fire every parent render (was Maximum update depth exceeded).
 	const onAsksChangeRef = useRef(onAsksChange);
@@ -1531,7 +1529,6 @@ function PdfViewerInner({
 				layout={pageLayout}
 				mode={pageMode}
 				handlers={pageHandlers}
-				hidden={privacyHidden}
 			/>
 		),
 		[
@@ -1545,7 +1542,6 @@ function PdfViewerInner({
 			pageLayout,
 			pageMode,
 			pageHandlers,
-			privacyHidden,
 		],
 	);
 
@@ -1665,7 +1661,6 @@ function PdfViewerInner({
 
 			{!translationOnly && (
 				<PdfCardStack
-					hidden={privacyHidden}
 					selectionMenu={{
 						state: plainViewer ? null : selectionMenu,
 						onHighlight: handleHighlight,

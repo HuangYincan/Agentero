@@ -60,11 +60,3 @@ export const PAGE_LAYER_STYLE: CSSProperties = {
 	position: "absolute",
 	inset: 0,
 };
-
-/**
- * Privacy mode (window unfocused): overlays tagged with this class are faded
- * out while an ancestor carries {@link PDF_PRIVACY_ROOT_CLASS}. Kept as
- * constants so the page layers and the global rule stay in lockstep.
- */
-export const PDF_PRIVACY_HIDE_CLASS = "pdf-privacy-hide";
-export const PDF_PRIVACY_ROOT_CLASS = "pdf-privacy-hidden";

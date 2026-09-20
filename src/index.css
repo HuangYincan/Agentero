@@ -1029,17 +1029,6 @@ body.agentero-dockview-dragging * {
 	color: #c9d1d9;
 }
 
-/*
- * Privacy mode: when the window loses focus (see `usePdfPrivacy`), fade out
- * PDF annotation / comment / translate overlays so a screenshot of a
- * different window never leaks them. The page rasters stay visible.
- * Specificity (0,2,0) beats any single utility class on the tagged overlay.
- */
-.pdf-privacy-hidden .pdf-privacy-hide {
-	opacity: 0;
-	pointer-events: none;
-	transition: opacity 150ms ease;
-}
 .dark .agentero-codeblock .hljs-bullet {
 	color: #f2cc60;
 }

@@ -16,7 +16,6 @@ import type {
 	CrossrefPreviewState,
 	SelectionMenuState,
 } from "@/components/viewer/pdf/types";
-import { cn } from "@/lib/core/utils";
 import type { PdfVisualSessionTrace } from "@/lib/pdf/agent-trace";
 import type { PdfAskThread } from "@/lib/pdf/ask";
 import type { HighlightColor } from "@/lib/pdf/highlight/palette";
@@ -78,8 +77,6 @@ type PdfCardStackProps = {
 		onHide: () => void;
 		onDelete: () => void;
 	};
-	/** Privacy mode: fade the floating cards while the window is unfocused. */
-	hidden?: boolean;
 };
 
 /**
@@ -97,17 +94,11 @@ export function PdfCardStack({
 	ask,
 	translate,
 	visual,
-	hidden = false,
 }: PdfCardStackProps) {
 	if (typeof document === "undefined") return null;
 
 	return createPortal(
-		<div
-			className={cn(
-				"transition-opacity duration-150",
-				hidden && "pointer-events-none opacity-0",
-			)}
-		>
+		<div>
 			{selectionMenu.state ? (
 				<SelectionMenu
 					screen={selectionMenu.state.screen}
