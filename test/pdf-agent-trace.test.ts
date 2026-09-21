@@ -121,6 +121,45 @@ describe("visual-context-store", () => {
 		expect(c.id).toBe("custom-id");
 	});
 
+	it("keeps one entry per mark id when the same crop is re-added", () => {
+		// "Add to sidebar chat" passes the mark id, so a second click on the same
+		// comment card must refresh the queued entry, not stack an identical chip
+		// that shares its React key and gets removed along with it.
+		addVisualDraft({
+			id: "mark-a",
+			paperPath: "papers/a",
+			page: 2,
+			rects: [rect],
+			comment: "第一次",
+			image,
+		});
+		addVisualDraft({
+			id: "mark-b",
+			paperPath: "papers/a",
+			page: 4,
+			rects: [rect],
+			comment: "另一处",
+			image,
+		});
+		addVisualDraft({
+			id: "mark-a",
+			paperPath: "papers/a",
+			page: 2,
+			rects: [rect],
+			comment: "改过的备注",
+			image,
+		});
+		expect(currentVisualDrafts().map((d) => d.id)).toEqual([
+			"mark-a",
+			"mark-b",
+		]);
+		// Re-adding refreshes in place — the later note wins.
+		expect(currentVisualDrafts()[0]?.comment).toBe("改过的备注");
+
+		removeVisualDraft("mark-a");
+		expect(currentVisualDrafts().map((d) => d.id)).toEqual(["mark-b"]);
+	});
+
 	it("groups drafts by paper path", () => {
 		addVisualDraft({
 			paperPath: "papers/a",

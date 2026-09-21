@@ -44,7 +44,12 @@ function resolvePaperPath(sourcePath: string): string {
 	return toVaultRelative(vaultStore.getState().vaultPath, sourcePath);
 }
 
-/** Append a visual annotation draft (image + optional comment). */
+/**
+ * Add a visual annotation draft (image + optional comment). A draft id is the
+ * mark id, so one mark is at most one composer entry: re-adding an id that is
+ * already queued refreshes that entry in place instead of stacking duplicates
+ * (which shared a React key and removed together).
+ */
 export function addVisualDraft(input: {
 	paperPath: string;
 	paperAbsPath?: string;
@@ -70,8 +75,12 @@ export function addVisualDraft(input: {
 		draft.paperAbsPath = input.paperAbsPath.trim();
 	}
 	const { drafts } = visualContextStore.getState();
+	const existing = drafts.findIndex((d) => d.id === draft.id);
 	visualContextStore.setState({
-		drafts: [...drafts, draft].slice(-MAX_DRAFTS),
+		drafts:
+			existing >= 0
+				? drafts.map((d, i) => (i === existing ? draft : d))
+				: [...drafts, draft].slice(-MAX_DRAFTS),
 	});
 	return draft;
 }
