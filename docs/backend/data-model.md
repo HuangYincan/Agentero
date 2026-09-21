@@ -22,6 +22,7 @@ Vault/
 ├── thesis/
 │   └── main.tex      # LaTeX 起手稿（仅新建 Vault 时写入）
 ├── .agents/skills/
+├── .claude/skills -> ../.agents/skills   # 探测到 claude CLI 时由 Host 创建（见 vault.md）
 └── .agentero/
     ├── catalog.sqlite
     ├── doctor.json     # 可选：Doctor 忽略列表等 Vault 本地偏好

@@ -161,6 +161,7 @@ Host 通过 Tauri event 向前端推送事件。文件系统、任务和菜单�
   - 写入 **`.agents/README.md`**（若不存在；内容来自仓库 `templates/vault/.agents/`）。
   - 种子 **bundled skills**：构建时自动发现 `templates/vault/.agents/skills/<id>/` 下的 Skill package 并内嵌，创建 Vault 时写入缺失文件；`agentero-cli` 按平台把 POSIX / Windows 模板映射到同一 `.agents/skills/agentero-cli/SKILL.md`。另写 `skills/README.md`。
   - **不**创建根级 `PAPERS.md` / `library.bib`；已有第一方 `SKILL.md` 按 frontmatter 整数 `version` 升级（见 `vault_ensure`）；用户去掉/抬高 `version` 的修改与其它 `.agents/**` 文件保持原样。
+  - 探测到 `claude` CLI 时创建 `.claude/skills → ../.agents/skills` 目录链接（Claude Code 只读项目内 `.claude/skills/`，详见 `vault_ensure` 策略）；已有同名条目保持原样。
   - 最近列表由前端在成功打开后写入 `localStorage`（`agentero-recent-vaults`）。
 
 #### `vault_ensure`（已实现）
@@ -183,6 +184,7 @@ Host 通过 Tauri event 向前端推送事件。文件系统、任务和菜单�
   - **补缺失**：目录 / `AGENTS.md` / 模板里有而盘上没有的 skill 文件。
   - **安全升级**（第一方 `SKILL.md`）：盘上 frontmatter 整数 `version` **低于** 模板 → 写入新版（后续升级只需 bump `version`）。同版本 / 更高版本 / 无 `version` → **不**覆盖。
   - **保留定制**：去掉或抬高 `version` 后的用户 `SKILL.md`、第三方 Skill 和 references 保持原样。
+  - **Skill 可见性**：探测到 `claude` CLI 时，若 Vault 内没有 `.claude/skills`，创建目录链接 `.claude/skills → ../.agents/skills`（Claude Code 只读 `~/.claude/skills/` 与项目内 `.claude/skills/`，不认 `.agents/skills/`）。用整目录链接而非逐 Skill 链接：其 loader 以 `readdirSync` + `dirent.isDirectory()` 过滤，逐 Skill 的符号链接目录会被跳过。用户自有的真实 `.claude/skills` 目录不覆盖；失败只记日志，不影响 `vault_ensure` 结果。
   - 应用升级新增的 skill（如后续模板里加的 id）会在下次打开 Vault 时自动出现。
   - 前端：`created` 与 `updated` 分别触发新增/升级 success toast；均为空时不打扰。
 

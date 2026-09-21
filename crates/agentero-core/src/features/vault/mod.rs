@@ -222,6 +222,10 @@ pub fn ensure_vault(path: &Path, locale: &str) -> Result<CreateVaultResult, AppE
         seed_or_upgrade_bundled_file(path, rel, content, &mut created, &mut updated)?;
     }
 
+    // Agents that read their own skill directory (Claude Code) get a link to the
+    // skill root just seeded, so both sides see the same packages.
+    agent_links::ensure_vault_agent_links(path);
+
     // Seed localized onboarding tutorial notes under `notes/` (no overwrite).
     let onboarding_files = bundled_onboarding_files(locale);
     for (rel, content) in &onboarding_files {
@@ -634,6 +638,7 @@ mod tests {
     }
 }
 
+pub mod agent_links;
 pub mod doctor;
 pub mod rename;
 pub mod trash;

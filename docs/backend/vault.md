@@ -13,6 +13,7 @@
   → notes/ 下三篇本地化新手教程（缺失时才写入）
   → thesis/ 缺失时写入 LaTeX 起手稿 thesis/main.tex
   → .agentero/catalog.sqlite
+  → 检测到 claude CLI 时：.claude/skills → ../.agents/skills
   → 前端加载树（Create 后自动打开 notes/01 ...）
 ```
 
@@ -22,6 +23,7 @@
   不覆盖用户已编辑的同名文件。
 - `vault_create` 返回的 `openPath` 为首篇教程路径；若教程已存在则回退到 `AGENTS.md`。
 - 每次打开会补种缺失的 bundled skills；第一方 `SKILL.md` 仅通过 frontmatter 整数 `version` 安全升级（盘上版本低于模板则覆盖并 toast）。无 `version`、同版本或更高版本的文件保持原样；返回值的 `updated` 列出本次安全升级路径。
+- Claude Code 只读项目内 `.claude/skills/`，不认 `.agents/skills/`：探测到 `claude` CLI 且 Vault 内没有 `.claude/skills` 时，创建一条目录链接 `.claude/skills → ../.agents/skills`（`agent_links.rs`），新增/删除 Skill 自动同步。用户自有的 `.claude/skills`（真实目录）保持原样，best-effort 失败只记日志、不影响脚手架。选整目录链接而非逐 Skill 链接：Claude Code 的 loader 用 `readdirSync` + `dirent.isDirectory()` 过滤，逐 Skill 的符号链接目录会被当作普通条目跳过。
 
 ## 关闭 / 切换
 

@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import {
 	type CatalogEntry,
 	type CatalogScanResponse,
@@ -13,6 +14,8 @@ import { errorText } from "@/lib/core/error";
 import { notifyError, notifySuccess } from "@/lib/core/notify";
 import { isTauri } from "@/lib/core/tauri";
 import { listenEventSafe } from "@/lib/core/tauri-events";
+import { ensureVault } from "@/lib/vault";
+import { getVaultPath } from "@/lib/vault/store";
 
 export type LifecycleProgressState = {
 	progress: number | null;
@@ -133,6 +136,13 @@ export function useAgentToolLifecycle(opts: {
 						{ name: entry.name },
 					),
 				);
+				// A freshly installed CLI can be a new skill consumer (Claude Code
+				// reads `.claude/skills`); re-ensure now instead of on the next
+				// vault open. Fire-and-forget: install success never waits on it.
+				if (action !== "uninstall") {
+					const path = getVaultPath();
+					if (path) void ensureVault(path, i18n.language).catch(() => {});
+				}
 				return true;
 			} catch (e) {
 				const message = lifecycleErrorMessage(errorText(e), (key, options) =>
