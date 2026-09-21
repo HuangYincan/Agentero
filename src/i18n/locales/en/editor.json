@@ -25,7 +25,6 @@
 	},
 	"codeBlock": {
 		"languageLabel": "Code language",
-		"language": "Language",
 		"plainText": "Plain text",
 		"search": "Search language…",
 		"noMatch": "No matching language",
@@ -151,15 +150,10 @@
 		"unsupported": "This embed type is preserved as Markdown but is not rendered yet.",
 		"error": "The embedded content could not be loaded.",
 		"openSource": "Open {{target}}",
-		"annotationHighlight": "Highlight",
-		"annotationVisual": "Visual annotation",
 		"annotationPage": "p.{{page}}",
-		"annotationExpand": "Show more",
-		"annotationCollapse": "Show less",
 		"untitled": "Embed",
 		"annotationRoleUser": "You",
-		"annotationRoleAssistant": "Assistant",
-		"annotationNoTranscript": "No conversation saved for this mark."
+		"annotationRoleAssistant": "Assistant"
 	},
 	"frontmatter": {
 		"title": "Properties",

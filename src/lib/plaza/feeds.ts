@@ -381,6 +381,16 @@ const FEED_ERROR_KEYS = {
 	http: "plaza.feeds.errors.http",
 	fetch: "plaza.feeds.errors.fetch",
 	body: "plaza.feeds.errors.body",
+	// Operation-level codes: used when the Host error carries no message.
+	listFailed: "plaza.feeds.errors.opFailed",
+	addFailed: "plaza.feeds.errors.opFailed",
+	removeFailed: "plaza.feeds.errors.opFailed",
+	renameFailed: "plaza.feeds.errors.opFailed",
+	refreshFailed: "plaza.feeds.errors.opFailed",
+	itemsFailed: "plaza.feeds.errors.opFailed",
+	markFailed: "plaza.feeds.errors.opFailed",
+	pinFailed: "plaza.feeds.errors.opFailed",
+	resolveFailed: "plaza.feeds.errors.opFailed",
 } as const;
 
 export type FeedErrorKey =

@@ -1,5 +1,4 @@
 {
-	"unavailable": "{{label}} 不可用",
 	"pdf": {
 		"empty": "暂无论文。",
 		"loading": "正在加载 PDF…",
@@ -192,7 +191,6 @@
 		},
 		"copied": "已复制",
 		"note": "批注",
-		"ask": "提问",
 		"quickChat": "快速对话",
 		"addToChat": "加入对话",
 		"chatCommentPlaceholder": "添加批注（可选）…",

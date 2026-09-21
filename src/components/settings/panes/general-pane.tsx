@@ -536,13 +536,7 @@ function PrivacySettingsBlock({
 						onClick={() => {
 							void clearUsage()
 								.then(() => notifySuccess(t("general.privacy.clearUsage.done")))
-								.catch((e) =>
-									notifyError(
-										e instanceof Error
-											? e.message
-											: t("general.privacy.clearUsage.done"),
-									),
-								);
+								.catch((e) => notifyError(errorText(e)));
 						}}
 					>
 						{t("general.privacy.clearUsage.action")}

@@ -26,7 +26,6 @@ import { PagePointerProvider } from "@embedpdf/plugin-interaction-manager/react"
 import { LayoutAnalysisLayer } from "@embedpdf/plugin-layout-analysis/react";
 import { RenderLayer } from "@embedpdf/plugin-render/react";
 import { SearchLayer } from "@embedpdf/plugin-search/react";
-import { SelectionLayer } from "@embedpdf/plugin-selection/react";
 import { TilingLayer } from "@embedpdf/plugin-tiling/react";
 import { EyeOff, Languages, Loader2 } from "lucide-react";
 import {
@@ -53,6 +52,7 @@ import { CitationLinkLayer } from "@/components/viewer/pdf/layers/citation-links
 import { CommentCardsLayer } from "@/components/viewer/pdf/layers/comment-cards-layer";
 import { HighlightAnnotationMenu } from "@/components/viewer/pdf/layers/highlight-annotation-menu";
 import { LayoutTranslateOverlay } from "@/components/viewer/pdf/layers/layout-translate-overlay";
+import { PdfTextSelectionLayer } from "@/components/viewer/pdf/layers/pdf-text-selection-layer";
 import { PdfRegionSelectLayer } from "@/components/viewer/pdf/layers/region-select-layer";
 import { SelectionGutter } from "@/components/viewer/pdf/layers/selection-gutter";
 import { PDF_VISUAL_REGION_FRAME_CLASS } from "@/components/viewer/pdf/layers/visual-region-frame";
@@ -132,6 +132,13 @@ const PASSIVE_HIGHLIGHT_RENDERER: BoxedAnnotationRenderer = {
 const PASSIVE_HIGHLIGHT_RENDERERS: BoxedAnnotationRenderer[] = [
 	PASSIVE_HIGHLIGHT_RENDERER,
 ];
+
+/**
+ * Text-selection highlight tint: a light translucent blue (Zotero-style) so the
+ * underlying glyphs stay legible under the selection. Module-level so every
+ * page shares one stable value.
+ */
+const PDF_TEXT_SELECTION_BACKGROUND = "rgba(96, 165, 250, 0.28)";
 
 /** A mark region pinned to a page (visual draft frame / formula legend frame). */
 type PageRegion = { page: number; region: PdfAskNormalizedRect } | null;
@@ -615,7 +622,11 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 			>
 				{/* Unmount text selection while framing a visual region. */}
 				{mode.regionSelecting ? null : (
-					<SelectionLayer documentId={docId} pageIndex={pageIndex} />
+					<PdfTextSelectionLayer
+						documentId={docId}
+						pageIndex={pageIndex}
+						background={PDF_TEXT_SELECTION_BACKGROUND}
+					/>
 				)}
 				{/*
 				 * AnnotationLayer is not inverted with the page rasters. In PDF dark

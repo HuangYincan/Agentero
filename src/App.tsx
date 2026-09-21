@@ -420,7 +420,12 @@ export default function App() {
 									className="min-h-0 overflow-hidden"
 									onResize={(size) => {
 										// Programmatic collapse/expand transition in flight.
-										if (animatingRailRef.current === "left") return;
+										if (
+											animatingRailRef.current === "left" ||
+											animatingRailRef.current === "both"
+										) {
+											return;
+										}
 										setLayoutMode("custom");
 										// Only mark collapsed after a real collapse, never mid-drag.
 										if (size.inPixels <= 1) setSidebarCollapsedState(true);
@@ -484,7 +489,12 @@ export default function App() {
 							className="min-h-0 overflow-hidden"
 							onResize={(size) => {
 								// Programmatic collapse/expand transition in flight.
-								if (animatingRailRef.current === "right") return;
+								if (
+									animatingRailRef.current === "right" ||
+									animatingRailRef.current === "both"
+								) {
+									return;
+								}
 								setLayoutMode("custom");
 								if (size.inPixels <= 1) setRightSidebarOpenState(false);
 								else if (size.inPixels >= 80) {

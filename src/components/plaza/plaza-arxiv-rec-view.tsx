@@ -156,14 +156,15 @@ export function PlazaArxivRecView({ className }: { className?: string }) {
 		} catch (error) {
 			if (token !== probeTokenRef.current) return false;
 			const message = errorText(error);
-			setProbeError(message);
+			const probeFailed = isProbeFailedError(error);
+			setProbeError(probeFailed ? null : message);
 			if (isNoEmbeddingError(error)) {
 				setProbeStatus("unconfigured");
 				setEmptyReason("noEmbedding");
 			} else {
 				setProbeStatus("failed");
 				setEmptyReason("probeFailed");
-				notifyError(message);
+				if (!probeFailed) notifyError(message);
 			}
 			return false;
 		}

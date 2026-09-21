@@ -92,7 +92,6 @@
 		"showPdf": "Show PDF version",
 		"openTexPdf": "Open PDF",
 		"texCompiling": "Compiling…",
-		"closeSplit": "Close split · {{title}}",
 		"contextClose": "Close",
 		"contextUnpinAndClose": "Unpin & Close",
 		"contextOpenNotes": "Open Notes",
@@ -115,11 +114,7 @@
 			"blue": "Blue",
 			"indigo": "Indigo",
 			"purple": "Purple"
-		},
-		"splitDropHint": "Drop to open as split",
-		"splitNotAllowed": "This item cannot open in a split pane.",
-		"emptyTitle": "No document open",
-		"emptyHint": "Pick a file or paper from the sidebar to open it in a tab."
+		}
 	},
 	"windows": {
 		"loading": "Loading…",

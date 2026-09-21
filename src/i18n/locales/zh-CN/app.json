@@ -89,7 +89,6 @@
 		"showPdf": "显示 PDF 版本",
 		"openTexPdf": "打开 PDF",
 		"texCompiling": "正在编译…",
-		"closeSplit": "关闭分屏 · {{title}}",
 		"contextClose": "关闭",
 		"contextUnpinAndClose": "取消固定并关闭",
 		"pin": "固定标签页",
@@ -115,11 +114,7 @@
 			"blue": "蓝",
 			"indigo": "靛",
 			"purple": "紫"
-		},
-		"splitDropHint": "松开放到分屏",
-		"splitNotAllowed": "此项无法在分屏中打开。",
-		"emptyTitle": "未打开任何文档",
-		"emptyHint": "从侧边栏选择文件或论文即可在标签中打开。"
+		}
 	},
 	"windows": {
 		"loading": "加载中…",

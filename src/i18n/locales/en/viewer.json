@@ -1,5 +1,4 @@
 {
-	"unavailable": "{{label}} unavailable",
 	"pdf": {
 		"empty": "No paper available.",
 		"loading": "Loading PDF…",
@@ -192,7 +191,6 @@
 		},
 		"copied": "Copied",
 		"note": "Annotate",
-		"ask": "Ask",
 		"quickChat": "Quick chat",
 		"addToChat": "Add to chat",
 		"chatCommentPlaceholder": "Add an optional comment…",
