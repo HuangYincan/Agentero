@@ -397,7 +397,7 @@ cargo test -p agentero-cli
 | # | 界面 | 操作 | 预期 | 结果 |
 |---|---|---|---|---|
 | 11.3.1 | 右栏·Agent（空态） | 点 Summarize / Ask library / Draft Related Work | 对**当前聚焦 paper** 发起对应 workflow | ☐ |
-| 11.3.2 | 左栏·树 | 找资源齐全且未读 paper，点 **Zap** | 任务条 paper-reader 进度；写/更新 `NOTES.md`；`is_read` 变已读；Zap 消失 | ☐ |
+| 11.3.2 | 左栏·树 | 找资源齐全且未读 paper，点 **精读图标** | 任务条 paper-reader 进度；写/更新 `NOTES.md`；`is_read` 变已读；图标消失 | ☐ |
 | 11.3.3 | 设置 → Agent | 打开 **入库后自动精读**；魔棒再入一篇未读 | 入库/下载完成后**自动**精读；任务条可见 | ☐ |
 | 11.3.4 | 魔棒 | 批量多 ID 入库（自动精读开着） | **不**对批量每篇连跑精读 | ☐ |
 | 11.3.5 | 右栏·Agent 历史 | 精读跑完后翻主对话列表 | 精读**不**出现在主 chat 历史 | ☐ |

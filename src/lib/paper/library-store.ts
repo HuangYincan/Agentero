@@ -41,7 +41,7 @@ type LibraryStore = {
 	citingScanDraft: CitingScanResult | null;
 	/** Bump to force RecycleBinView reload after Empty Recycle Bin. */
 	trashReloadSignal: number;
-	/** Catalog rows by vault-relative path (for Zap / is_read). */
+	/** Catalog rows by vault-relative path (for read action / is_read). */
 	paperMetaByRelPath: Map<string, PaperMetadata>;
 };
 

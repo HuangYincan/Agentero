@@ -142,7 +142,7 @@ Obsidian 兼容语法：
 
 ## 精读（可选）
 
-资源齐全（本地 PDF + TeX 或 `PAPER.md`）且尚未精读时，文件树论文行可点 **Zap** 启动 paper-reader，结果写入 `NOTES.md`。也可在设置中开启自动精读（默认关）。详见 [接入 Agent](agents.md)。
+资源齐全（本地 PDF + TeX 或 `PAPER.md`）且尚未精读时，文件树论文行可点 **精读图标** 启动 paper-reader，结果写入 `NOTES.md`。也可在设置中开启自动精读（默认关）。详见 [接入 Agent](agents.md)。
 
 ## 下一步
 

@@ -252,7 +252,7 @@ export async function downloadLibraryPaper(
 }
 
 /**
- * paper-reader workflow: Zap on complete + unread papers.
+ * paper-reader workflow: manual read on complete + unread papers.
  * Progress surfaces in the bottom-left background tasks panel.
  */
 export async function readPaper(node: FileNode): Promise<void> {

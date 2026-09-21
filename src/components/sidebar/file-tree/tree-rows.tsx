@@ -7,9 +7,9 @@ import {
 	Globe,
 	Library,
 	Loader2,
+	NotebookPen,
 	ScrollText,
 	Trash2,
-	Zap,
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -201,7 +201,7 @@ export function PaperTreeRow({
 									{isReading ? (
 										<Loader2 className="size-3.5 animate-spin" />
 									) : (
-										<Zap className="size-3.5" />
+										<NotebookPen className="size-3.5" />
 									)}
 								</Button>
 							</TooltipTrigger>

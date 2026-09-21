@@ -112,7 +112,8 @@ function paperAssetsComplete(
 }
 
 /**
- * Show file-tree Zap when assets are complete and catalog says not yet read.
+ * Show the file-tree read action when assets are complete and catalog says
+ * not yet read.
  */
 export function paperNeedsRead(
 	node: TreeWalkNode,

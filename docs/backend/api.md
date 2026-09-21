@@ -1368,7 +1368,7 @@ Agent：`agent_run_once` / `agent_warm` 在 vault 为 `remote:…` 时经 SSH `b
 - **前端**：`src/lib/paper/api.ts` → `setPaperIsRead`；paper-reader 工作流成功结束后置 `true`。
 - **说明**：与 `status`（入库态）无关；默认 `false`。触发路径：
   - **自动**：魔棒 `lookup_import_batch`（单条）/ 单篇 `paper_download_assets` 成功且资源就绪时，前端 `maybeAutoRunPaperReader`（批量导入/批量 Download 不连跑）。
-  - **手动**：文件树在「资源齐全且 `is_read === false`」时显示 **Zap** 图标。
+  - **手动**：文件树在「资源齐全且 `is_read === false`」时显示 **NotebookPen** 图标。
   - 实现：`src/lib/paper/reader.ts`（进度 `kind=paperRead`；可与 lookup/download 任务衔接）；skill 触发按当前默认 Agent 的 `SkillMentionStyle`。
 
 #### `paper_set_tags`

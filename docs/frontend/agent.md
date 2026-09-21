@@ -74,7 +74,7 @@ Tool 提升的作答：`formatAskUserAnswers` 后作为下一用户轮。若当�
 
 | 触发 | 条件 |
 |---|---|
-| Zap | 有 PDF +（TeX 或 `PAPER.md`）且未读 |
+| 手动（NotebookPen） | 有 PDF +（TeX 或 `PAPER.md`）且未读 |
 | 自动 | `autoPaperReader`（默认关）；魔棒/单篇 Download 后 |
 
 成功写 `NOTES.md`，`is_read = true`；进度在后台任务条。批量导入不连跑。  

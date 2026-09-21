@@ -80,11 +80,11 @@ catalog **始终**写入 `pdf_url` / `html_url`（有则仍可供在线预览）
 - **点击**：`paper_download_assets` → PDF 到论文根目录 → arXiv 尽量 TeX 到 `source/` → 无 TeX 则 liteparse `PAPER.md`。
 - **论文库节点**（`papers/` 根文件夹右键）：库内任一篇不完整时批量同一逻辑。
 
-**精读（Zap 图标 + 自动触发）**：
+**精读（NotebookPen 图标 + 自动触发）**：
 
-- **显示条件（Zap）**：本地资源齐全且 catalog **`is_read === false`**（与 Download 互斥）。
+- **显示条件（精读图标）**：本地资源齐全且 catalog **`is_read === false`**（与 Download 互斥）。
 - **自动触发**：`lookup_import_batch`（魔棒，单条）或单篇 `paper_download_assets` 成功且 PDF/TeX/`PAPER.md` 任一可读正文/归档就绪时，前端 `maybeAutoRunPaperReader` 自动跑同一工作流（批量 Library 导入/批量 Download **不**自动连跑，避免并发炸 Agent）。
-- **手动**：点击 Zap → 同上。
+- **手动**：点击精读图标 → 同上。
 - **实现**：`src/lib/paper/reader.ts` → `agent_run_once` + skill（**`hideFromChatHistory: true`**，不进 Agent 对话记录）；Codex `$paper-reader` / Claude `/paper-reader` / 其它注入 `SKILL.md` → 写 `{paper}/NOTES.md` → `paper_set_is_read(true)`；进度在左下角后台任务条。
 - **进度**：左下角后台任务条——入库/下载阶段 `kind=lookup|download`（分阶段 detail/progress），随后精读 `kind=paperRead`。
 
@@ -561,7 +561,7 @@ await ensure_paper_assets(paperDir, record);           // PDF + arXiv LaTeX → 
 
 魔棒入库走 JobCenter `import` job（Renderer-host）：每个输入一个 job，面板行由 `job:changed` 投影产生，批次计数进度经 `job:progress` 写回行内。任务面板只展示每个标识符的状态和资源进度，不展示 Host 批处理的内部阶段或聚合计数；并发限制由 JobCenter 的 `Import` kind cap 执行（Settings → General → Batch import concurrency）。
 
-- **不自动精读**：批量入库不连跑 `paper-reader`，避免 Agent 与写笔记开销爆炸；用户可后续单篇手动 Zap 或等设置 `autoPaperReader` 对单篇触发。
+- **不自动精读**：批量入库不连跑 `paper-reader`，避免 Agent 与写笔记开销爆炸；用户可后续单篇手动精读或等设置 `autoPaperReader` 对单篇触发。
 
 ### 6.5 事件
 

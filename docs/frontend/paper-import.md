@@ -60,7 +60,7 @@
 ## 补资源 / 精读触发
 
 - Download：缺 PDF 或无正文资源时。
-- Zap / 自动精读：见 [agent.md](agent.md)。
+- 手动精读 / 自动精读：见 [agent.md](agent.md)。
 
 ## 代码
 

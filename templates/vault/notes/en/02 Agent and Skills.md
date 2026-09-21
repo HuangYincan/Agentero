@@ -46,7 +46,7 @@ Bundled Skills include:
 
 The paper must have a local PDF and readable text, either TeX or `PAPER.md`:
 
-- **Manual reading**: click the **Zap** icon on an unread paper row.
+- **Manual reading**: click the **read icon** on an unread paper row.
 - **Automatic reading**: enable **autoPaperReader** under Settings → Agent. It is disabled by default.
 
 The reading result is written to the paper's `NOTES.md`, and the paper is marked as read when the workflow finishes.

@@ -57,7 +57,7 @@ Apple 风格 8 色 → Host `paper_set_tags`（catalog `tags_json` 权威）。L
 
 ### 精读（paper-reader）
 
-设置 → Agent `autoPaperReader`（默认关）。开启后魔棒入库/单篇 Download 资源就绪且未读时自动运行。资源齐全且 `is_read === false` 时文件树 Zap 可手动。写入 `NOTES.md`，成功后 `is_read = true`。进度在左下角后台任务条。Skill 运行时语法：Claude `/id`，其它仅注入 `SKILL.md`。详见 [frontend/agent.md](frontend/agent.md)。
+设置 → Agent `autoPaperReader`（默认关）。开启后魔棒入库/单篇 Download 资源就绪且未读时自动运行。资源齐全且 `is_read === false` 时文件树精读图标可手动触发。写入 `NOTES.md`，成功后 `is_read = true`。进度在左下角后台任务条。Skill 运行时语法：Claude `/id`，其它仅注入 `SKILL.md`。详见 [frontend/agent.md](frontend/agent.md)。
 
 ### Agent 面板
 

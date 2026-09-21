@@ -35,7 +35,7 @@ import { joinVaultPath } from "@/lib/vault";
 
 const PAPER_READER_SKILL_ID = "paper-reader";
 
-/** Prevent concurrent reads of the same paper (auto + Zap). */
+/** Prevent concurrent reads of the same paper (auto + manual). */
 const inflightReads = new Set<string>();
 
 /**
@@ -246,7 +246,7 @@ export function paperAssetsReadyForReader(flags: {
  * (shows left-bottom progress). Returns true when a run started.
  *
  * Default setting is **off**. Does not throw on skip; rethrows agent/workflow
- * failures so callers can surface errors. Manual Zap always uses
+ * failures so callers can surface errors. Manual runs always use
  * {@link runPaperReaderWorkflow} directly.
  */
 export async function maybeAutoRunPaperReader(opts: {

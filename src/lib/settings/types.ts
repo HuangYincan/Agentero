@@ -265,7 +265,7 @@ export type AppSettings = {
 	/**
 	 * After magic-wand import / single-paper Download, auto-run paper-reader
 	 * when assets are ready and catalog `is_read` is false.
-	 * Default **off**; Zap still works for manual runs.
+	 * Default **off**; manual runs from the file tree still work.
 	 */
 	autoPaperReader: boolean;
 	/** Language forced onto every agent response and generated notes. */
