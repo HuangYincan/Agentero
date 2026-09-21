@@ -19,7 +19,7 @@
 | 打开笔记 | 论文 tab 右键 /文件树论文行右键 → NOTES 进右侧阅读列（已开则聚焦；菜单显示 `⌘\` / `Ctrl+\`） |
 | 关光文档 | 回到全库 Library panel |
 
-标题栏 Layout 菜单中的窗口布局预设改变当前论文的 Notes 分屏、外层 Agent panel 宽度和左侧 Vault sidebar：Agent 模式为 PDF / Agent `1:1` 并展开左侧栏，笔记模式为 PDF / Notes / Agent `1:1:1` 并展开左侧栏，阅读模式关闭 Notes、Agent 与左侧栏，只保留 PDF 阅读界面。其它 PDF tab 保持打开。
+标题栏 Layout 菜单中的窗口布局预设改变当前论文的 Notes 分屏、外层 Agent panel 和左侧 Vault sidebar：Agent 模式为 PDF / Agent `1:1` 并展开左侧栏，笔记模式关闭左右侧栏并显示 PDF / Notes，阅读模式关闭 Notes、Agent 与左侧栏，只保留 PDF 阅读界面。其它 PDF tab 保持打开。
 
 标签组 chip 的颜色菜单会将展开/收起 icon 染为对应颜色，并同步用于组内 tab 的强调线；清除颜色后恢复默认颜色。
 

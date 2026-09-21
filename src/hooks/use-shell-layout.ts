@@ -10,6 +10,7 @@ import { prefersReducedMotion } from "@/lib/core/motion";
 import {
 	type LayoutPresetMode,
 	layoutModeLeftCollapsed,
+	layoutModeRightCollapsed,
 	layoutModeRightRatio,
 } from "@/lib/shell/layout-presets";
 import {
@@ -220,7 +221,7 @@ export function useShellLayout(): ShellLayout {
 			if (mode === "notes") setNotesSplit(true, { preserveLayoutMode: true });
 			else setNotesSplit(false, { preserveLayoutMode: true });
 
-			if (mode === "reading") {
+			if (layoutModeRightCollapsed(mode)) {
 				setRightCollapsed(true);
 			} else {
 				setRightRatio(layoutModeRightRatio(mode));

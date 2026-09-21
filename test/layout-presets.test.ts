@@ -3,6 +3,7 @@ import {
 	LAYOUT_MODE_LEFT_COLLAPSED,
 	LAYOUT_MODE_RIGHT_RATIOS,
 	layoutModeLeftCollapsed,
+	layoutModeRightCollapsed,
 	layoutModeRightRatio,
 } from "@/lib/shell/layout-presets";
 
@@ -11,17 +12,19 @@ describe("layout presets", () => {
 		expect(layoutModeRightRatio("agent")).toBe(0.5);
 	});
 
-	it("allocates one third to Agent in Notes mode", () => {
-		expect(layoutModeRightRatio("notes")).toBeCloseTo(1 / 3);
+	it("collapses Agent in Notes mode", () => {
+		expect(layoutModeRightCollapsed("notes")).toBe(true);
+		expect(LAYOUT_MODE_RIGHT_RATIOS.notes).toBe(0);
 	});
 
 	it("collapses Agent in Reading mode", () => {
-		expect(LAYOUT_MODE_RIGHT_RATIOS.reading).toBe(0);
+		expect(layoutModeRightCollapsed("reading")).toBe(true);
 	});
 
-	it("collapses the left sidebar only in Reading mode", () => {
+	it("collapses the left sidebar in Notes and Reading modes", () => {
 		expect(layoutModeLeftCollapsed("reading")).toBe(true);
+		expect(layoutModeLeftCollapsed("notes")).toBe(true);
 		expect(layoutModeLeftCollapsed("agent")).toBe(false);
-		expect(LAYOUT_MODE_LEFT_COLLAPSED.notes).toBe(false);
+		expect(LAYOUT_MODE_LEFT_COLLAPSED.notes).toBe(true);
 	});
 });
