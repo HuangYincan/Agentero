@@ -316,6 +316,15 @@ mod tests {
         assert!(dir
             .join(".agents/skills/deep-research/references/quality-gates.md")
             .is_file());
+        assert!(dir
+            .join(".agents/skills/figure-digitizer/SKILL.md")
+            .is_file());
+        assert!(dir
+            .join(".agents/skills/figure-digitizer/references/extraction-contract.md")
+            .is_file());
+        assert!(dir
+            .join(".agents/skills/figure-digitizer/scripts/figure_digitizer.py")
+            .is_file());
         assert!(dir.join("AGENTS.md").is_file());
         assert!(dir.join(".agentero/catalog.sqlite").is_file());
         let onboarding_paths = bundled_onboarding_files("en")
