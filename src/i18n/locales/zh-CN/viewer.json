@@ -81,6 +81,7 @@
 		"annotationPreviewAlt": "第 {{page}} 页裁剪区域",
 		"visualAnnotation": "视觉批注",
 		"addToSidebarChat": "加入侧边栏对话",
+		"digitizeFigure": "用 Agent 读取图中数据",
 		"tracePinAria": "打开视觉批注：{{preview}}",
 		"traceCardTitle": "视觉对话",
 		"traceDelete": "删除",

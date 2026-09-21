@@ -244,6 +244,8 @@ export type PdfPageHandlers = {
 	onCopyCommentEmbed: (comment: PageAnnotationComment) => void;
 	/** Add a visual comment's crop to the Agent sidebar composer (#396). */
 	onAddCommentToChat: (comment: PageAnnotationComment) => void;
+	/** Hand a visual comment's chart crop to the Agent as a figure-digitizer run. */
+	onDigitizeComment: (comment: PageAnnotationComment) => void;
 	/** Hover enters a comment-rail card. */
 	onHoverComment: (comment: PageAnnotationComment) => void;
 	/** Hover leaves a comment-rail card. */
@@ -1009,6 +1011,7 @@ export const PdfPageLayers = memo(function PdfPageLayers({
 						onCopyLink={handlers.onCopyCommentLink}
 						onCopyEmbed={handlers.onCopyCommentEmbed}
 						onAddToChat={handlers.onAddCommentToChat}
+						onDigitize={handlers.onDigitizeComment}
 						onHover={handlers.onHoverComment}
 						onLeave={handlers.onLeaveComment}
 					/>

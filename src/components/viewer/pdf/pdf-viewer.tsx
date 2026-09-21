@@ -1060,6 +1060,7 @@ function PdfViewerInner({
 		handleVisualDraft,
 		updateVisualComment,
 		handleVisualAddToChatById,
+		handleVisualDigitizeById,
 		deleteVisualTraceById,
 	} = usePdfVisualMarks({
 		paperAbsPath,
@@ -1468,6 +1469,14 @@ function PdfViewerInner({
 		[handleVisualAddToChatById],
 	);
 
+	const handleDigitizeComment = useCallback(
+		(comment: PageAnnotationComment) => {
+			if (comment.kind !== "visual") return;
+			handleVisualDigitizeById(comment.id);
+		},
+		[handleVisualDigitizeById],
+	);
+
 	const pageHandlers = useMemo<PdfPageHandlers>(
 		() => ({
 			onOpenPin: handleOpenPin,
@@ -1489,6 +1498,7 @@ function PdfViewerInner({
 			onCopyCommentLink: handleCopyCommentLink,
 			onCopyCommentEmbed: handleCopyCommentEmbed,
 			onAddCommentToChat: handleAddCommentToChat,
+			onDigitizeComment: handleDigitizeComment,
 			onHoverComment: (comment) => setHoveredCommentId(comment.id),
 			onLeaveComment: () => setHoveredCommentId(null),
 			onCommitSelectionComment: handleCommitSelectionComment,
@@ -1514,6 +1524,7 @@ function PdfViewerInner({
 			handleCopyCommentLink,
 			handleCopyCommentEmbed,
 			handleAddCommentToChat,
+			handleDigitizeComment,
 			setHoveredCommentId,
 			handleCommitSelectionComment,
 			handleSelectionCommentActiveChange,

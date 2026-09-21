@@ -73,6 +73,7 @@ const EMPTY_HANDLERS: PdfPageHandlers = {
 	onCopyCommentLink: NOOP,
 	onCopyCommentEmbed: NOOP,
 	onAddCommentToChat: NOOP,
+	onDigitizeComment: NOOP,
 	onHoverComment: NOOP,
 	onLeaveComment: NOOP,
 	onCommitSelectionComment: NOOP,

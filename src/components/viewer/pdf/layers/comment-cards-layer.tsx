@@ -9,6 +9,7 @@
  */
 
 import {
+	ChartSpline,
 	Crop,
 	Link2,
 	MessageSquare,
@@ -99,6 +100,8 @@ type CommentCardsLayerProps = {
 	onCopyEmbed: (comment: PageAnnotationComment) => void;
 	/** Add this visual mark's crop to the Agent sidebar composer (#396). */
 	onAddToChat: (comment: PageAnnotationComment) => void;
+	/** Hand this visual mark's chart crop to the Agent as a figure-digitizer run. */
+	onDigitize: (comment: PageAnnotationComment) => void;
 	onHover: (comment: PageAnnotationComment) => void;
 	onLeave: () => void;
 };
@@ -254,6 +257,7 @@ type CommentCardProps = {
 	onCopyLink: (comment: PageAnnotationComment) => void;
 	onCopyEmbed: (comment: PageAnnotationComment) => void;
 	onAddToChat: (comment: PageAnnotationComment) => void;
+	onDigitize: (comment: PageAnnotationComment) => void;
 	onHover: (comment: PageAnnotationComment) => void;
 	onLeave: () => void;
 };
@@ -272,6 +276,7 @@ const CommentCard = memo(function CommentCard({
 	onCopyLink,
 	onCopyEmbed,
 	onAddToChat,
+	onDigitize,
 	onHover,
 	onLeave,
 }: CommentCardProps) {
@@ -516,6 +521,26 @@ const CommentCard = memo(function CommentCard({
 								<TooltipContent>{t("annotations.copyEmbed")}</TooltipContent>
 							</Tooltip>
 						</>
+					) : null}
+					{item.kind === "visual" ? (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon-xs"
+									className="size-6 text-muted-foreground hover:text-foreground"
+									aria-label={t("pdfExplain.digitizeFigure")}
+									onClick={(e) => {
+										e.stopPropagation();
+										onDigitize(item);
+									}}
+								>
+									<ChartSpline className="size-3.5" />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>{t("pdfExplain.digitizeFigure")}</TooltipContent>
+						</Tooltip>
 					) : null}
 					{item.kind === "visual" ? (
 						<Tooltip>
@@ -797,6 +822,7 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 	onCopyLink,
 	onCopyEmbed,
 	onAddToChat,
+	onDigitize,
 	onHover,
 	onLeave,
 }: CommentCardsLayerProps) {
@@ -872,6 +898,7 @@ export const CommentCardsLayer = memo(function CommentCardsLayer({
 							onCopyLink={onCopyLink}
 							onCopyEmbed={onCopyEmbed}
 							onAddToChat={onAddToChat}
+							onDigitize={onDigitize}
 							onHover={onHover}
 							onLeave={onLeave}
 						/>

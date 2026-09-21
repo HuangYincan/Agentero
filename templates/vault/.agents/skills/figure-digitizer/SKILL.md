@@ -1,6 +1,6 @@
 ---
 name: figure-digitizer
-version: 1
+version: 2
 description: >-
   从论文配图、PDF 图表页或图片中提取「图上可见、坐标可校准」的数值证据：先确认面板、图表类型与坐标轴，再走注册的确定性抽取，产出 data.csv、overlay.png、recreated.png 与 report.json。看不清、被遮挡或无法标定的内容一律标为 low_confidence / not_extracted，绝不猜值。
 ---
@@ -34,7 +34,7 @@ description: >-
 | Vault 内论文的插图 | `agentero layout list {paper} --kind figure --json` 拿到 `figure-3` 这类 id，再 `agentero layout get {paper} figure-3 --json` 取 `page`（1-based）与 `bbox`（0–1 页相对） |
 | PDF 整页 | `pdftoppm -r 200 -f <page> -l <page> -png -singlefile {paper}/<id>.pdf page` |
 | 单张图片 / 用户拖入的文件 | 直接用该文件路径，不要先做任何缩放或转码 |
-| PDF 视觉批注裁剪 | 用户在阅读器里框选后落在 `{paper}/marks/assets/<id>.png`，配套 `{paper}/marks/<id>.json` |
+| PDF 视觉批注裁剪 | 用户在阅读器里框选后落在 `{paper}/marks/assets/<id>.png`，配套 `{paper}/marks/<id>.json`。用户在评论卡上点「用 Agent 读取图中数据」时，裁剪图与本 skill 会一起进入输入框，并带上论文 mention —— 这条路径下先读 `marks/<id>.json` 拿 bbox / page，再决定要不要回到整页重新 `crop` |
 
 拿到页图后，用 `crop` 按 layout 的 0–1 bbox 切出目标面板 —— 原生分辨率切割，不重采样：
 
