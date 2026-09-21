@@ -381,9 +381,13 @@ function jobPanelDetail(job: JobChangedSnapshot): string | undefined {
 		return i18n.t("app:tasks.layoutModelDetail");
 	}
 	if (job.kind === "metadataRefresh") {
+		// Covers only the queued window: the executor reports real counts as soon as it starts.
 		return i18n.t("sidebar:papersLibrary.refreshMetadataTaskDetail", {
 			current: 0,
 			total: jobParams(job.params).papers?.length ?? 0,
+			updated: 0,
+			failed: 0,
+			empty: 0,
 		});
 	}
 	// Vault-scope kinds carry no paper target.

@@ -19,7 +19,7 @@ export function ThemeStep({
 	settings: AppSettings;
 	patch: (p: Partial<AppSettings>) => void;
 }) {
-	const { t } = useTranslation("onboarding");
+	const { t } = useTranslation(["onboarding", "settings"]);
 	const { resolvedTheme } = useTheme();
 	const [themeDefs, setThemeDefs] = useState<UiThemeDef[]>([]);
 
@@ -50,7 +50,7 @@ export function ThemeStep({
 	const previewThemes = [
 		{
 			name: DEFAULT_UI_THEME,
-			title: t("theme.uiThemeSelect", { name: "Default" }),
+			title: t("settings:appearance.uiTheme.default"),
 			light: defaultPreview,
 			dark: defaultPreview,
 		},
