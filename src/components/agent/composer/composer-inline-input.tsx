@@ -27,6 +27,7 @@ import {
 	parseInlineTokenParts,
 	stripInlineTokens,
 } from "@/lib/agent/composer-inline-tokens";
+import { decideComposerExternalValueSync } from "@/lib/agent/composer-sync";
 import { filesFromDataTransfer } from "@/lib/core/file-accept";
 import { isImeKeyboardEvent } from "@/lib/core/ime";
 import { basenameOf } from "@/lib/core/path";
@@ -551,6 +552,8 @@ export const ComposerInlineInput = forwardRef<
 		const editorRef = useRef<HTMLDivElement>(null);
 		/** null until first paint so the initial `value` always hydrates into the DOM. */
 		const lastValueRef = useRef<string | null>(null);
+		const composingRef = useRef(false);
+		const awaitingParentEchoRef = useRef(false);
 		const { isBlockedByIme, isComposing, compositionProps } = useImeGuard();
 		const renderedTokensRef = useRef<Set<string>>(new Set());
 		const isFirstRenderRef = useRef(true);
@@ -560,6 +563,7 @@ export const ComposerInlineInput = forwardRef<
 			if (!root) return;
 			const next = serializeEditor(root);
 			lastValueRef.current = next;
+			awaitingParentEchoRef.current = true;
 			onValueChange(next);
 		}, [onValueChange]);
 
@@ -610,10 +614,23 @@ export const ComposerInlineInput = forwardRef<
 		);
 
 		useLayoutEffect(() => {
-			if (value === lastValueRef.current) return;
+			const root = editorRef.current;
+			const decision = decideComposerExternalValueSync({
+				nextValue: value,
+				lastKnownDomValue: lastValueRef.current,
+				currentDomValue: root ? serializeEditor(root) : "",
+				focused: Boolean(root && document.activeElement === root),
+				composing: composingRef.current || isComposing,
+				awaitingParentEcho: awaitingParentEchoRef.current,
+			});
+			if (decision === "skip") {
+				awaitingParentEchoRef.current = false;
+				return;
+			}
+			if (decision === "defer") return;
+			awaitingParentEchoRef.current = false;
 			lastValueRef.current = value;
 			renderValue(value);
-			const root = editorRef.current;
 			if (root && document.activeElement === root) {
 				placeCaretAtEnd(root);
 				scrollEditorToBottom();
@@ -679,6 +696,18 @@ export const ComposerInlineInput = forwardRef<
 		);
 
 		const handleInput = (_event: FormEvent<HTMLDivElement>) => {
+			emitFromDom();
+			scrollEditorToBottom();
+		};
+
+		const handleCompositionStart = () => {
+			composingRef.current = true;
+			compositionProps.onCompositionStart();
+		};
+
+		const handleCompositionEnd = () => {
+			composingRef.current = false;
+			compositionProps.onCompositionEnd();
 			emitFromDom();
 			scrollEditorToBottom();
 		};
@@ -892,7 +921,8 @@ export const ComposerInlineInput = forwardRef<
 						onKeyDown={handleKeyDown}
 						onPaste={handlePaste}
 						onClick={handleChipClick}
-						{...compositionProps}
+						onCompositionStart={handleCompositionStart}
+						onCompositionEnd={handleCompositionEnd}
 						{...aria}
 					/>
 				</div>
