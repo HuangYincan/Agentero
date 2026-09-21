@@ -41,6 +41,7 @@ Bundled Skills include:
 - `vault-normalizer` — reorganize an existing research directory into the Agentero Vault layout.
 - `deep-research` — conduct multi-step research with citations.
 - `idea-evaluator` — evaluate research ideas from multiple perspectives.
+- `figure-digitizer` — digitize a figure into calibrated numeric evidence (CSV, overlay, report); unmeasurable marks stay low-confidence instead of being guessed.
 
 ### Example: Reading a Paper
 

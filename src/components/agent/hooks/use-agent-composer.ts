@@ -26,6 +26,7 @@ import type { AgentSkill } from "@/lib/agent";
 import type { ChatLine } from "@/lib/agent/chat-state";
 import {
 	appendMissingInlineTokens,
+	deriveComposerTokens,
 	encodeCommandToken,
 	encodeMentionToken,
 	encodeSelectionToken,
@@ -194,12 +195,18 @@ export function useAgentComposer({
 			const next = text.trim();
 			if (!next) return;
 			setComposerText(next);
+			// A seeded prompt may carry inline tokens (the PDF figure digitize
+			// handoff does). Derive the chips and skill state exactly like typed
+			// input does, or the token renders as a chip but never reaches the run.
+			const tokens = deriveComposerTokens(next);
+			setMentionedPaths(tokens.mentionedPaths);
+			setSelectedSkillIds(tokens.selectedSkillIds);
 			setComposerMenuDismissed(true);
 		};
 		const pending = takePendingAgentComposerPrompt();
 		if (pending) apply(pending);
 		return subscribePendingAgentComposerPrompt(apply);
-	}, [setComposerText]);
+	}, [setComposerText, setMentionedPaths, setSelectedSkillIds]);
 
 	/** Same paper label mode as the file tree (settings); title fallback if meta missing. */
 	const currentFileLabel = useMemo(() => {
@@ -792,8 +799,9 @@ export function useAgentComposer({
 				promptHistoryAppliedRef.current = null;
 			}
 			setComposerText(text);
-			setMentionedPaths(extractMentionPaths(text));
-			setSelectedSkillIds(extractSkillIds(text));
+			const tokens = deriveComposerTokens(text);
+			setMentionedPaths(tokens.mentionedPaths);
+			setSelectedSkillIds(tokens.selectedSkillIds);
 		},
 		[
 			promptHistoryAppliedRef,

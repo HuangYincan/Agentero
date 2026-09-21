@@ -25,6 +25,7 @@ import type {
 	RailEditState,
 	VisualDraftEditorState,
 } from "@/components/viewer/pdf/types";
+import { setPendingAgentComposerPrompt } from "@/lib/agent/composer-seed";
 import { addVisualDraft } from "@/lib/agent/visual-context-store";
 import { errorText } from "@/lib/core/error";
 import { notifyError } from "@/lib/core/notify";
@@ -36,6 +37,7 @@ import {
 } from "@/lib/pdf/agent-trace";
 import { loadPdfVisualTraceImage } from "@/lib/pdf/agent-trace/image";
 import { DEFAULT_HIGHLIGHT_COLOR } from "@/lib/pdf/highlight/palette";
+import { buildFigureDigitizePrompt } from "@/lib/pdf-visual/digitize-prompt";
 import { openRightTab } from "@/lib/shell/ui-window-actions";
 
 export type UsePdfVisualMarksOptions = {
@@ -67,6 +69,11 @@ export type PdfVisualMarks = {
 	updateVisualComment: (id: string, comment: string) => void;
 	/** Add an existing visual mark's crop to the Agent sidebar composer (#396). */
 	handleVisualAddToChatById: (id: string) => void;
+	/**
+	 * Hand an existing visual mark's crop to the Agent as a figure-digitizer
+	 * run: same crop handoff, plus a seeded request naming the skill.
+	 */
+	handleVisualDigitizeById: (id: string) => void;
 	/** Drop a mark from state + disk (also used by the imperative handle). */
 	deleteVisualTraceById: (id: string) => void;
 };
@@ -157,37 +164,67 @@ export function usePdfVisualMarks({
 		[paperAbsPath, upsertVisualTrace, visualTracesRef],
 	);
 
+	/**
+	 * Load a mark's crop into the composer as a visual draft. Returns false when
+	 * the crop is missing, so callers can skip their follow-up step.
+	 */
+	const addVisualTraceDraft = useCallback(
+		async (latest: PdfVisualSessionTrace): Promise<boolean> => {
+			const image = await loadPdfVisualTraceImage(
+				paperAbsPath ?? "",
+				latest.image,
+			);
+			if (!image?.data) {
+				notifyError(t("pdfExplain.cropFailed"));
+				return false;
+			}
+			addVisualDraft({
+				id: latest.id,
+				paperPath: latest.paperPath || paperRelPath || paperAbsPath || "paper",
+				paperAbsPath: paperAbsPath ?? undefined,
+				page: latest.page,
+				rects: latest.rects,
+				comment: latest.comment,
+				image: {
+					data: image.data,
+					mimeType: image.mimeType || "image/png",
+				},
+			});
+			return true;
+		},
+		[paperAbsPath, paperRelPath, t],
+	);
+
 	/** Add an existing visual mark's crop to the Agent sidebar composer (#396). */
 	const handleVisualAddToChatById = useCallback(
 		(id: string) => {
 			const latest = visualTracesRef.current.find((tr) => tr.id === id);
 			if (!latest) return;
 			void (async () => {
-				const image = await loadPdfVisualTraceImage(
-					paperAbsPath ?? "",
-					latest.image,
-				);
-				if (!image?.data) {
-					notifyError(t("pdfExplain.cropFailed"));
-					return;
-				}
-				addVisualDraft({
-					id: latest.id,
-					paperPath:
-						latest.paperPath || paperRelPath || paperAbsPath || "paper",
-					paperAbsPath: paperAbsPath ?? undefined,
-					page: latest.page,
-					rects: latest.rects,
-					comment: latest.comment,
-					image: {
-						data: image.data,
-						mimeType: image.mimeType || "image/png",
-					},
-				});
+				if (!(await addVisualTraceDraft(latest))) return;
 				openRightTab("agent");
 			})();
 		},
-		[paperAbsPath, paperRelPath, t, visualTracesRef],
+		[addVisualTraceDraft, visualTracesRef],
+	);
+
+	/** Seed a figure-digitizer run for an existing mark's crop. */
+	const handleVisualDigitizeById = useCallback(
+		(id: string) => {
+			const latest = visualTracesRef.current.find((tr) => tr.id === id);
+			if (!latest) return;
+			void (async () => {
+				if (!(await addVisualTraceDraft(latest))) return;
+				setPendingAgentComposerPrompt(
+					buildFigureDigitizePrompt({
+						paperPath: latest.paperPath || paperRelPath || "",
+						page: latest.page,
+					}),
+				);
+				openRightTab("agent");
+			})();
+		},
+		[addVisualTraceDraft, paperRelPath, visualTracesRef],
 	);
 
 	const deleteVisualTraceById = useCallback(
@@ -202,6 +239,7 @@ export function usePdfVisualMarks({
 		handleVisualDraft,
 		updateVisualComment,
 		handleVisualAddToChatById,
+		handleVisualDigitizeById,
 		deleteVisualTraceById,
 	};
 }

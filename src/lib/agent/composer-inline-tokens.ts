@@ -135,6 +135,24 @@ export function decodeSelectionTokenPayload(
 }
 
 /** Paths in document order (duplicates kept once, first wins). */
+/**
+ * Token-derived composer state for a draft text.
+ *
+ * Anything that sets the draft outside the typing path (a seeded prompt, prompt
+ * history) must run this too: the send path reads the derived skill/mention
+ * state, not the raw text, so a token that only reaches the text renders as a
+ * chip but never activates.
+ */
+export function deriveComposerTokens(text: string): {
+	mentionedPaths: string[];
+	selectedSkillIds: string[];
+} {
+	return {
+		mentionedPaths: extractMentionPaths(text),
+		selectedSkillIds: extractSkillIds(text),
+	};
+}
+
 export function extractMentionPaths(text: string): string[] {
 	const seen = new Set<string>();
 	const out: string[] = [];

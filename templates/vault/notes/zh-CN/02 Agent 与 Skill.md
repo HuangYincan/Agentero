@@ -41,6 +41,7 @@ Agent 回复过程中仍可继续输入，后续消息会进入队列，当前�
 - `vault-normalizer` — 将现有研究目录整理为 Agentero Vault 布局。
 - `deep-research` — 多轮研究并带引用。
 - `idea-evaluator` — 多角度评估研究想法。
+- `figure-digitizer` — 把论文配图校准后抽成数值证据（CSV / 覆盖图 / 报告），测不到的地方标为低置信而不是猜。
 
 ### 案例1：精读论文
 

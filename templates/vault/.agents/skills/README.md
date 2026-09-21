@@ -11,6 +11,7 @@ Create Vault seeds these when missing. Pick with `$` in Composer.
 | `idea-evaluator` | 研究 idea 评审 |
 | `deep-research` | 综述级文献调研 |
 | `research-paper-writing` | 论文写作与审稿前自查 |
+| `figure-digitizer` | 图表数字化：校准坐标轴后抽取可见数值，产出 CSV / 覆盖图 / 报告 |
 
 ## Versioning & upgrades
 
@@ -38,4 +39,4 @@ remove `version` or set it higher than the template after editing.
 **License: [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)**  
 Full text lives in each vendored skill package's `LICENSE` file.
 
-`paper-reader` / `agentero-cli` / `vault-normalizer` are first-party (Agentero license).
+`paper-reader` / `agentero-cli` / `vault-normalizer` / `figure-digitizer` are first-party (Agentero license).

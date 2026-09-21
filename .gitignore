@@ -33,6 +33,10 @@ site/
 *.sln
 *.sw?
 
+# Python bytecode from bundled skill scripts (.agents/skills/*/scripts)
+__pycache__/
+*.pyc
+
 # Local agent / IDE workspaces (e.g. Qoder CLI under vault or src-tauri)
 .qoder/
 **/.qoder/

@@ -80,6 +80,7 @@
 		"annotationPreviewAlt": "Cropped region from page {{page}}",
 		"visualAnnotation": "Visual annotation",
 		"addToSidebarChat": "Add to sidebar chat",
+		"digitizeFigure": "Chart digitization",
 		"tracePinAria": "Open visual annotation: {{preview}}",
 		"traceCardTitle": "Visual chat",
 		"traceDelete": "Delete",
