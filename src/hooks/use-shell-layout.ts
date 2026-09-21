@@ -35,7 +35,7 @@ export type ShellLayout = {
 	leftWidthPxRef: RefObject<number>;
 	rightWidthPxRef: RefObject<number>;
 	/** Which rail is running a programmatic collapse/expand transition. */
-	animatingRailRef: RefObject<"left" | "right" | null>;
+	animatingRailRef: RefObject<"left" | "right" | "both" | null>;
 	cancelRailAnimation: () => void;
 };
 
@@ -50,10 +50,37 @@ export function useShellLayout(): ShellLayout {
 	const editorPaneRef = useRef<HTMLDivElement>(null);
 	const leftWidthPxRef = useRef(SIDEBAR_DEFAULT_PX);
 	const rightWidthPxRef = useRef(RIGHT_SIDEBAR_DEFAULT_PX);
-	const animatingRailRef = useRef<"left" | "right" | null>(null);
-	const railAnimTimerRef = useRef(0);
+	const animatingRailRef = useRef<"left" | "right" | "both" | null>(null);
+	const railAnimTimerRef = useRef({ left: 0, right: 0 });
 
 	const controller = useMemo(() => {
+		const setAnimatingRail = (side: "left" | "right") => {
+			const current = animatingRailRef.current;
+			animatingRailRef.current = !current || current === side ? side : "both";
+		};
+
+		const clearAnimatingRail = (side: "left" | "right") => {
+			railAnimTimerRef.current[side] = 0;
+			const leftActive = railAnimTimerRef.current.left !== 0;
+			const rightActive = railAnimTimerRef.current.right !== 0;
+			if (leftActive && rightActive) {
+				animatingRailRef.current = "both";
+				return;
+			}
+			if (leftActive) {
+				animatingRailRef.current = "left";
+				return;
+			}
+			if (rightActive) {
+				animatingRailRef.current = "right";
+				return;
+			}
+			for (const el of document.querySelectorAll("[data-rail-animating]")) {
+				el.removeAttribute("data-rail-animating");
+			}
+			animatingRailRef.current = null;
+		};
+
 		const clearRailAnimating = () => {
 			for (const el of document.querySelectorAll("[data-rail-animating]")) {
 				el.removeAttribute("data-rail-animating");
@@ -61,9 +88,12 @@ export function useShellLayout(): ShellLayout {
 		};
 
 		const cancelRailAnimation = () => {
-			if (railAnimTimerRef.current) {
-				window.clearTimeout(railAnimTimerRef.current);
-				railAnimTimerRef.current = 0;
+			for (const side of ["left", "right"] as const) {
+				const timer = railAnimTimerRef.current[side];
+				if (timer) {
+					window.clearTimeout(timer);
+					railAnimTimerRef.current[side] = 0;
+				}
 			}
 			clearRailAnimating();
 			animatingRailRef.current = null;
@@ -86,18 +116,17 @@ export function useShellLayout(): ShellLayout {
 				apply();
 				return;
 			}
-			cancelRailAnimation();
-			animatingRailRef.current = side;
+			const currentTimer = railAnimTimerRef.current[side];
+			if (currentTimer) window.clearTimeout(currentTimer);
+			setAnimatingRail(side);
 			const groupEl = panelEl.closest("[data-group]") ?? panelEl.parentElement;
 			const targets = groupEl
 				? groupEl.querySelectorAll("[data-panel]")
 				: [panelEl];
 			for (const el of targets) el.setAttribute("data-rail-animating", "");
 			apply();
-			railAnimTimerRef.current = window.setTimeout(() => {
-				railAnimTimerRef.current = 0;
-				clearRailAnimating();
-				animatingRailRef.current = null;
+			railAnimTimerRef.current[side] = window.setTimeout(() => {
+				clearAnimatingRail(side);
 			}, RAIL_ANIMATION_MS + 40);
 		};
 
@@ -188,8 +217,8 @@ export function useShellLayout(): ShellLayout {
 		const applyLayoutMode = (mode: LayoutPresetMode) => {
 			setLeftCollapsed(layoutModeLeftCollapsed(mode));
 
-			if (mode === "notes") setNotesSplit(true);
-			else setNotesSplit(false);
+			if (mode === "notes") setNotesSplit(true, { preserveLayoutMode: true });
+			else setNotesSplit(false, { preserveLayoutMode: true });
 
 			if (mode === "reading") {
 				setRightCollapsed(true);

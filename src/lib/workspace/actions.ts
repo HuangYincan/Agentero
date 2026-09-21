@@ -929,8 +929,11 @@ function activeNotesTarget(): DocTab | null {
 }
 
 /** Set the active paper's NOTES panel without touching other PDF tabs. */
-export function setNotesSplit(open: boolean): void {
-	setLayoutMode("custom");
+export function setNotesSplit(
+	open: boolean,
+	opts: { preserveLayoutMode?: boolean } = {},
+): void {
+	if (!opts.preserveLayoutMode) setLayoutMode("custom");
 	const target = activeNotesTarget();
 	if (!target?.notesPath) return;
 	const notesId = tabIdForPath(target.notesPath);
