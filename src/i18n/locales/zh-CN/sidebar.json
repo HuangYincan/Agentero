@@ -232,7 +232,8 @@
 				"parse": "无法解析这个 Feed。",
 				"http": "源站返回了错误。",
 				"fetch": "拉源失败。",
-				"body": "无法读取 Feed 内容。"
+				"body": "无法读取 Feed 内容。",
+				"opFailed": "订阅源操作失败。"
 			}
 		},
 		"skills": {

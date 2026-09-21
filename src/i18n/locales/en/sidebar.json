@@ -232,7 +232,8 @@
 				"parse": "Could not parse this feed.",
 				"http": "The feed server returned an error.",
 				"fetch": "Could not fetch this feed.",
-				"body": "Could not read the feed body."
+				"body": "Could not read the feed body.",
+				"opFailed": "The feed operation failed."
 			}
 		},
 		"skills": {
