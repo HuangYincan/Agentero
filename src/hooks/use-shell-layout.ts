@@ -9,6 +9,7 @@ import { usePanelRef } from "react-resizable-panels";
 import { prefersReducedMotion } from "@/lib/core/motion";
 import {
 	type LayoutPresetMode,
+	layoutModeLeftCollapsed,
 	layoutModeRightRatio,
 } from "@/lib/shell/layout-presets";
 import {
@@ -185,6 +186,8 @@ export function useShellLayout(): ShellLayout {
 		};
 
 		const applyLayoutMode = (mode: LayoutPresetMode) => {
+			setLeftCollapsed(layoutModeLeftCollapsed(mode));
+
 			if (mode === "notes") setNotesSplit(true);
 			else setNotesSplit(false);
 
