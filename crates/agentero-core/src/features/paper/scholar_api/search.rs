@@ -8,13 +8,15 @@
 use std::time::Duration;
 
 use crate::features::paper::import::api_mapper::merge_api_paper_candidates;
-use crate::features::scholar_api::scoring::{is_same_paper, normalize_title, title_similarity};
+use crate::features::scholar_api::scoring::{
+    is_same_paper, title_similarity, title_similarity_key,
+};
 use crate::features::scholar_api::sources::{
     alphaxiv::AlphaxivApi, arxiv::ArxivApi, crossref::CrossrefApi, openalex::OpenAlexApi,
     pubmed::PubMedApi, semantic_scholar::SemanticScholarApi,
 };
 use crate::features::scholar_api::traits::AcademicApi;
-use crate::features::scholar_api::{ApiError, ApiPaper, ApiQuery};
+use crate::features::scholar_api::{normalize_id, ApiError, ApiPaper, ApiQuery};
 
 /// Budget for S2's `/paper/search/match` fast path.
 const MATCH_BUDGET: Duration = Duration::from_secs(3);
@@ -334,12 +336,12 @@ pub fn fuse_and_rank_candidates(hits: Vec<ApiPaper>, query: &str, limit: usize) 
         })
         .collect();
 
-    let norm_query = normalize_title(query);
+    let norm_query = title_similarity_key(query);
     let mut scored: Vec<ScoredCandidate> = merged
         .into_iter()
         .map(|m| {
             let title_sim =
-                title_similarity(&norm_query, &normalize_title(&m.paper.title)) as f64 / 100.0;
+                title_similarity(&norm_query, &title_similarity_key(&m.paper.title)) as f64 / 100.0;
             let priority_boost = source_priority(m.paper.source) as f64 / 100.0;
             let citation_boost = m
                 .paper
@@ -359,10 +361,10 @@ pub fn fuse_and_rank_candidates(hits: Vec<ApiPaper>, query: &str, limit: usize) 
         .filter(|s| s.title_sim >= MATCH_THRESHOLD)
         .collect();
 
-    let target = normalize_title(query);
+    let target = title_similarity_key(query);
     scored.sort_by(|a, b| {
-        let exact_a = normalize_title(&a.paper.title) == target;
-        let exact_b = normalize_title(&b.paper.title) == target;
+        let exact_a = title_similarity_key(&a.paper.title) == target;
+        let exact_b = title_similarity_key(&b.paper.title) == target;
         exact_a
             .cmp(&exact_b)
             .reverse()
@@ -445,10 +447,6 @@ fn identifier_overlap(a: &ApiPaper, b: &ApiPaper) -> bool {
         )
         || same(a.identifiers.pmid.as_deref(), b.identifiers.pmid.as_deref())
         || same(a.identifiers.isbn.as_deref(), b.identifiers.isbn.as_deref())
-}
-
-fn normalize_id(s: &str) -> String {
-    s.trim().to_lowercase().replace(['-', '_', ' '], "")
 }
 
 struct MergedCandidate {

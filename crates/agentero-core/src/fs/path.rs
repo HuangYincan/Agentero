@@ -2,7 +2,7 @@
 
 use crate::error::AppError;
 use serde::Serialize;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 /// Capability flags so UI / business logic can degrade without guesswork.
 #[derive(Debug, Clone, Copy, Serialize, specta::Type)]
@@ -110,6 +110,18 @@ pub fn path_escapes_root(rel: &str) -> bool {
         }
     }
     false
+}
+
+/// True when `rel` is usable as a vault-relative path: not absolute and built
+/// only from `Normal` / `CurDir` components (rejects `..`, `/` roots and
+/// Windows prefixes). Empty input passes — callers that require a non-empty
+/// path check that separately.
+pub fn safe_relative_path(rel: &str) -> bool {
+    let path = Path::new(rel);
+    !path.is_absolute()
+        && path
+            .components()
+            .all(|component| matches!(component, Component::Normal(_) | Component::CurDir))
 }
 
 /// Normalize a vault-relative path and reject empty or root-escaping inputs.

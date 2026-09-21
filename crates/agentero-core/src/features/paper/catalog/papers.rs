@@ -429,6 +429,77 @@ pub fn list_by_id(vault_root: &Path, id: &str) -> Result<Vec<PaperRecord>, AppEr
     })
 }
 
+/// Outcome of resolving a user/agent supplied paper reference.
+pub enum PaperRefLookup {
+    /// Boxed because [`PaperRecord`] is an order of magnitude larger than the
+    /// other variants.
+    Found(Box<PaperRecord>),
+    /// Several catalog rows share the logical id; carries their vault paths
+    /// (ordered by path) for the caller to disambiguate.
+    Ambiguous(Vec<String>),
+    NotFound,
+}
+
+/// Whether `reference` should be treated as a vault-relative path rather than
+/// a logical paper id.
+pub fn looks_like_path(reference: &str) -> bool {
+    let t = reference.trim();
+    t.contains('/') || t.contains('\\') || t.starts_with("papers")
+}
+
+/// Resolve a path-or-id reference against the catalog: path form goes through
+/// [`get_by_path`] (normalized separators), id form through [`list_by_id`].
+/// Returns [`PaperRefLookup::Ambiguous`] instead of picking one arbitrarily.
+pub fn lookup_paper_ref(vault_root: &Path, reference: &str) -> Result<PaperRefLookup, AppError> {
+    let reference = reference.trim();
+    if reference.is_empty() {
+        return Err(AppError::message("paper ref is required"));
+    }
+    if looks_like_path(reference) {
+        let path = crate::fs::normalize_rel_separators(reference);
+        return Ok(match get_by_path(vault_root, &path)? {
+            Some(record) => PaperRefLookup::Found(Box::new(record)),
+            None => PaperRefLookup::NotFound,
+        });
+    }
+    let matches = list_by_id(vault_root, reference)?;
+    match matches.len() {
+        0 => Ok(PaperRefLookup::NotFound),
+        1 => Ok(PaperRefLookup::Found(Box::new(
+            matches.into_iter().next().expect("len 1"),
+        ))),
+        _ => Ok(PaperRefLookup::Ambiguous(
+            matches.iter().map(|p| p.path.clone()).collect(),
+        )),
+    }
+}
+
+/// Parse a CLI/MCP tag spec `name[:color]` into a [`PaperTag`]. A trailing
+/// `:color` only counts when the color id is known; anything else stays part
+/// of the name.
+pub fn parse_tag_spec(raw: &str) -> Result<PaperTag, AppError> {
+    let value = raw.trim();
+    if value.is_empty() {
+        return Err(AppError::message("tag name must not be empty"));
+    }
+    let Some((name, color)) = value.rsplit_once(':') else {
+        return Ok(PaperTag::new(value));
+    };
+    if name.trim().is_empty() {
+        return Err(AppError::message("tag name must not be empty"));
+    }
+    if TAG_COLOR_IDS
+        .iter()
+        .any(|id| id.eq_ignore_ascii_case(color.trim()))
+    {
+        return Ok(PaperTag {
+            name: name.trim().to_string(),
+            color: Some(color.trim().to_ascii_lowercase()),
+        });
+    }
+    Ok(PaperTag::new(value))
+}
+
 /// Find a paper by one of its canonical identifier columns.
 /// `column` must be one of: `arxiv_id`, `doi`, `isbn`, `pmid`, `id`.
 pub fn find_by_identifier(

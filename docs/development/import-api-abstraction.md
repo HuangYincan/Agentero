@@ -319,7 +319,7 @@ crates/agentero-core/src/features/paper/
     mod.rs           # 公开类型：ApiQuery, ApiPaper, ApiError, ApiCapability, VenueMetrics ...
     traits.rs        # AcademicApi, VenueMetricsSource, PdfUrlSource, BibliographySource
     client.rs        # 共享 ApiHttpClient
-    scoring.rs       # 与 storage 无关的候选排序/合并：normalize_title, title_similarity, is_same_paper
+    scoring.rs       # 与 storage 无关的候选排序/合并：title_similarity_key, title_similarity, is_same_paper
     sources/
       translator.rs
       semantic_scholar.rs

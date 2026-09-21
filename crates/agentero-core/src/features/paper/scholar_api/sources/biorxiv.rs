@@ -10,6 +10,7 @@
 use async_trait::async_trait;
 use serde_json::Value;
 
+use crate::features::paper::util::str_field;
 use crate::features::scholar_api::client;
 use crate::features::scholar_api::traits::AcademicApi;
 use crate::features::scholar_api::{
@@ -135,13 +136,6 @@ fn map_item(server: &str, item: &Value) -> Option<ApiPaper> {
         },
         raw: None,
     })
-}
-
-fn str_field(item: &Value, key: &str) -> Option<String> {
-    item.get(key)
-        .and_then(|v| v.as_str())
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
 }
 
 #[cfg(test)]

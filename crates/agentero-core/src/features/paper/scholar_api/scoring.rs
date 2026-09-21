@@ -4,8 +4,12 @@ use std::collections::HashSet;
 
 use crate::features::scholar_api::ApiPaper;
 
-/// Normalize a title for comparison: lowercase, drop punctuation, collapse whitespace.
-pub fn normalize_title(s: &str) -> String {
+/// Comparison key for title *similarity*: lowercase, every non-alphanumeric
+/// run collapsed into a single space (full Unicode letters/digits kept, word
+/// order preserved). Differs from [`crate::features::refs::latex::title_compact_key`]
+/// (ASCII-only, separators dropped entirely) and from the Zotero
+/// `title_match_key` (whitespace collapsed but punctuation kept).
+pub fn title_similarity_key(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut pending_space = false;
     for ch in s.chars() {
@@ -62,7 +66,10 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
 
 /// True if two papers describe the same work using title, year, and author overlap.
 pub fn is_same_paper(a: &ApiPaper, b: &ApiPaper, year_tolerance: i32) -> bool {
-    title_similarity(&normalize_title(&a.title), &normalize_title(&b.title)) >= 85
+    title_similarity(
+        &title_similarity_key(&a.title),
+        &title_similarity_key(&b.title),
+    ) >= 85
         && year_close(a.year, b.year, year_tolerance)
         && author_overlap(&a.authors, &b.authors) >= 0.30
 }
@@ -118,8 +125,8 @@ mod tests {
 
     #[test]
     fn title_similarity_handles_word_order() {
-        let a = normalize_title("Attention Is All You Need");
-        let b = normalize_title("All You Need Is Attention");
+        let a = title_similarity_key("Attention Is All You Need");
+        let b = title_similarity_key("All You Need Is Attention");
         assert!(title_similarity(&a, &b) >= 90);
     }
 

@@ -59,7 +59,10 @@ fn source_lines(markdown: &str) -> Vec<SourceLine<'_>> {
     lines
 }
 
-fn normalize_alias(value: &str) -> String {
+/// Canonical alias comparison key: whitespace-collapsed and lowercased.
+/// Shared with the Vault Doctor's alias checks so both agree on what counts as
+/// the same alias.
+pub(crate) fn normalize_alias(value: &str) -> String {
     value
         .split_whitespace()
         .collect::<Vec<_>>()

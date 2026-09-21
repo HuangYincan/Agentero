@@ -3,6 +3,7 @@
 use async_trait::async_trait;
 use serde_json::Value;
 
+use crate::features::paper::util::str_field;
 use crate::features::scholar_api::client;
 use crate::features::scholar_api::identifiers::strip_arxiv_version;
 use crate::features::scholar_api::traits::{AcademicApi, BibliographySource};
@@ -246,13 +247,6 @@ pub(crate) fn map_zotero_item(item: &Value) -> Option<ApiPaper> {
         source: "translator",
         raw: None,
     })
-}
-
-fn str_field(item: &Value, key: &str) -> Option<String> {
-    item.get(key)
-        .and_then(|v| v.as_str())
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
 }
 
 fn normalize_arxiv_field(s: Option<&str>) -> Option<String> {

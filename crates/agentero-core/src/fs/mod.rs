@@ -10,7 +10,7 @@ pub use local::LocalFs;
 pub use path::{
     canonicalize_best_effort, ensure_vault_dir, join_remote, normalize_rel, normalize_rel_lexical,
     normalize_rel_separators, path_escapes_root, resolve_paper_dir, resolve_vault,
-    sanitize_vault_rel, FsCaps, FsDirEntry, FsFileMeta,
+    safe_relative_path, sanitize_vault_rel, FsCaps, FsDirEntry, FsFileMeta,
 };
 pub use store::{atomic_write, atomic_write_with, json_store, json_store_with, AtomicOpts};
 

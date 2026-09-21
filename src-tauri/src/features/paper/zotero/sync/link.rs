@@ -6,7 +6,7 @@
 
 use crate::core::error::AppError;
 use crate::features::paper::catalog::papers::{self, PaperRecord};
-use crate::features::paper::zotero::db::normalize_title;
+use crate::features::paper::zotero::db::title_match_key;
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -81,7 +81,7 @@ impl CatalogIndex {
                 });
             }
         }
-        let key = normalize_title(title);
+        let key = title_match_key(title);
         if !key.is_empty() {
             if let Some(&idx) = self.by_title.get(&key) {
                 return Some(LinkedPaper {
@@ -120,7 +120,7 @@ pub fn build_catalog_index(vault: &Path) -> Result<CatalogIndex, AppError> {
         {
             index.by_arxiv.entry(aid).or_insert(idx);
         }
-        let title = normalize_title(&row.title);
+        let title = title_match_key(&row.title);
         if !title.is_empty() {
             index.by_title.entry(title).or_insert(idx);
         }
@@ -190,7 +190,7 @@ mod tests {
             if let Some(a) = row.arxiv_id.as_deref().map(str::to_lowercase) {
                 index.by_arxiv.entry(a).or_insert(idx);
             }
-            let t = normalize_title(&row.title);
+            let t = title_match_key(&row.title);
             if !t.is_empty() {
                 index.by_title.entry(t).or_insert(idx);
             }

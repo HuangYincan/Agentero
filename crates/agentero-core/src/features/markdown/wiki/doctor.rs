@@ -13,11 +13,11 @@ use crate::features::wiki::resolve::heading_path_ends_with;
 use crate::features::wiki::util::{
     normalize_key, replacement_target, stem_of, strip_markdown_extension,
 };
-use crate::fs::{normalize_rel_lexical, normalize_rel_separators};
+use crate::fs::{normalize_rel_lexical, normalize_rel_separators, safe_relative_path};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 use crate::features::doctor::DoctorRepairError;
@@ -673,14 +673,6 @@ pub fn plan_wikilink_repairs(vault: &Path) -> Result<WikilinkRepairPlan, DoctorR
 
 fn write_note_bytes(path: &Path, contents: &[u8]) -> Result<(), String> {
     fs::write(path, contents).map_err(|error| error.to_string())
-}
-
-fn safe_relative_path(raw: &str) -> bool {
-    let path = Path::new(raw);
-    !path.is_absolute()
-        && path
-            .components()
-            .all(|component| matches!(component, Component::Normal(_) | Component::CurDir))
 }
 
 struct PlannedWikilinkWrite {

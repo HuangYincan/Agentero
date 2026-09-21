@@ -782,31 +782,8 @@ fn move_paper(globals: &GlobalOpts, from: &str, dest_parent: &str) -> Result<Val
     }
 }
 
-const TAG_COLORS: &[&str] = &[
-    "red", "orange", "yellow", "green", "teal", "blue", "indigo", "purple",
-];
-
 fn parse_tag_spec(raw: &str) -> Result<PaperTag, CliError> {
-    let value = raw.trim();
-    if value.is_empty() {
-        return Err(CliError::usage("tag name must not be empty"));
-    }
-    let Some((name, color)) = value.rsplit_once(':') else {
-        return Ok(PaperTag::new(value));
-    };
-    if name.trim().is_empty() {
-        return Err(CliError::usage("tag name must not be empty"));
-    }
-    if TAG_COLORS
-        .iter()
-        .any(|id| id.eq_ignore_ascii_case(color.trim()))
-    {
-        return Ok(PaperTag {
-            name: name.trim().to_string(),
-            color: Some(color.trim().to_ascii_lowercase()),
-        });
-    }
-    Ok(PaperTag::new(value))
+    papers::parse_tag_spec(raw).map_err(|err| CliError::usage(err.to_string()))
 }
 
 async fn download(globals: &GlobalOpts, ref_: &str) -> Result<Value, CliError> {

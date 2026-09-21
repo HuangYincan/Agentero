@@ -353,8 +353,11 @@ impl AgenteroMcp {
             Ok(p) => p,
             Err(e) => return Err(tool_err(e)),
         };
-        let parsed: Result<Vec<_>, _> =
-            args.tags.iter().map(|t| paper::parse_tag_spec(t)).collect();
+        let parsed: Result<Vec<_>, _> = args
+            .tags
+            .iter()
+            .map(|t| papers::parse_tag_spec(t))
+            .collect();
         let parsed = match parsed {
             Ok(t) => t,
             Err(e) => return Err(tool_err(e)),

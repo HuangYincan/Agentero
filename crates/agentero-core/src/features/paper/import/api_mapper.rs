@@ -4,6 +4,7 @@ use serde_json::Value;
 
 use crate::error::AppError;
 use crate::features::catalog::papers::{hide_arxiv_category_tag, PaperKind, PaperRecord, PaperTag};
+use crate::features::paper::util::str_field;
 use crate::features::scholar_api::identifiers::{doi_slug, strip_arxiv_version};
 use crate::features::scholar_api::sources::translator::map_zotero_item;
 use crate::features::scholar_api::urls::{arxiv_canonical_urls, doi_landing_url};
@@ -375,13 +376,6 @@ pub(crate) fn citekey_fallback(authors: &[String], year: Option<i32>, title: &st
         .collect::<String>()
         .to_lowercase();
     format!("{author}{y}{word}")
-}
-
-fn str_field(item: &Value, key: &str) -> Option<String> {
-    item.get(key)
-        .and_then(|v| v.as_str())
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
 }
 
 #[cfg(test)]

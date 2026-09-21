@@ -652,7 +652,7 @@ impl Dedup {
             if let Some(x) = r.doi.as_deref().filter(|s| !s.is_empty()) {
                 d.doi.insert(x.to_lowercase(), r.path.clone());
             }
-            let t = normalize_title(&r.title);
+            let t = title_match_key(&r.title);
             if !t.is_empty() {
                 d.title.insert(t, r.path.clone());
             }
@@ -676,7 +676,7 @@ impl Dedup {
                 return Some(p.clone());
             }
         }
-        let t = normalize_title(&meta.title);
+        let t = title_match_key(&meta.title);
         if !t.is_empty() {
             if let Some(p) = self.title.get(&t) {
                 return Some(p.clone());
@@ -692,14 +692,19 @@ impl Dedup {
         if let Some(x) = meta.doi.as_deref().filter(|s| !s.is_empty()) {
             self.doi.insert(x.to_lowercase(), path.to_string());
         }
-        let t = normalize_title(&meta.title);
+        let t = title_match_key(&meta.title);
         if !t.is_empty() {
             self.title.insert(t, path.to_string());
         }
     }
 }
 
-pub(crate) fn normalize_title(title: &str) -> String {
+/// Comparison key for Zotero → catalog *identity* matching: whitespace folded
+/// to single spaces and lowercased, punctuation kept verbatim. Differs from
+/// `scholar_api::scoring::title_similarity_key` (drops punctuation, Unicode
+/// alphanumerics) and from `analyze::refs::latex::title_compact_key` (ASCII
+/// only, all separators removed).
+pub(crate) fn title_match_key(title: &str) -> String {
     title
         .split_whitespace()
         .collect::<Vec<_>>()

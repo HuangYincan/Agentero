@@ -7,7 +7,7 @@
 use std::collections::HashSet;
 
 use crate::features::scholar_api::scoring::is_same_paper;
-use crate::features::scholar_api::{ApiPaper, PaperIdentifiers};
+use crate::features::scholar_api::{normalize_id, ApiPaper, PaperIdentifiers};
 
 /// Deduplicate a list of paper candidates.
 ///
@@ -55,10 +55,6 @@ fn identifier_keys(ids: &PaperIdentifiers) -> Vec<String> {
         keys.push(format!("isbn:{}", normalize_id(isbn)));
     }
     keys
-}
-
-fn normalize_id(s: &str) -> String {
-    s.trim().to_lowercase().replace(['-', '_', ' '], "")
 }
 
 #[cfg(test)]

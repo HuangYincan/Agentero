@@ -675,7 +675,7 @@ fn merge_online(base: &mut [RefDraft], online: &[RefDraft]) -> Vec<usize> {
         .map(|d| {
             d.raw
                 .as_deref()
-                .map(latex::normalize_title)
+                .map(latex::title_compact_key)
                 .unwrap_or_default()
         })
         .collect();
@@ -689,7 +689,7 @@ fn merge_online(base: &mut [RefDraft], online: &[RefDraft]) -> Vec<usize> {
                 .or_insert(i);
         }
         if let Some(t) = &d.title {
-            let n = latex::normalize_title(t);
+            let n = latex::title_compact_key(t);
             if n.len() >= 10 {
                 by_title.entry(n).or_insert(i);
             }
@@ -711,7 +711,7 @@ fn merge_online(base: &mut [RefDraft], online: &[RefDraft]) -> Vec<usize> {
                 })
             })
             .or_else(|| {
-                let n = o.title.as_deref().map(latex::normalize_title)?;
+                let n = o.title.as_deref().map(latex::title_compact_key)?;
                 if n.len() < 10 {
                     return None;
                 }
@@ -840,7 +840,7 @@ fn attach_local_matches(citations: &mut [Citation], catalog: &[PaperRecord], sel
                 .entry(latex::strip_arxiv_version(a).to_lowercase())
                 .or_insert(&r.path);
         }
-        let n = latex::normalize_title(&r.title);
+        let n = latex::title_compact_key(&r.title);
         if n.len() >= 15 {
             by_title.entry(n).or_insert(&r.path);
         }
@@ -861,7 +861,7 @@ fn attach_local_matches(citations: &mut [Citation], catalog: &[PaperRecord], sel
             })
             .or_else(|| {
                 m.title.as_ref().and_then(|t| {
-                    let n = latex::normalize_title(t);
+                    let n = latex::title_compact_key(t);
                     if n.len() < 15 {
                         return None;
                     }

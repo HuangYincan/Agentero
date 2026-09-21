@@ -3,6 +3,7 @@
 use async_trait::async_trait;
 use serde_json::Value;
 
+use crate::features::paper::util::{collapse_ws, str_field};
 use crate::features::scholar_api::client;
 use crate::features::scholar_api::traits::AcademicApi;
 use crate::features::scholar_api::{
@@ -255,14 +256,6 @@ fn map_work(message: &Value, known_doi: Option<&str>) -> Option<ApiPaper> {
     })
 }
 
-fn str_field(message: &Value, key: &str) -> Option<String> {
-    message
-        .get(key)
-        .and_then(|v| v.as_str())
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-}
-
 fn str_or_first(message: &Value, key: &str) -> Option<String> {
     let v = message.get(key)?;
     let s = match v {
@@ -276,10 +269,6 @@ fn str_or_first(message: &Value, key: &str) -> Option<String> {
     } else {
         Some(s)
     }
-}
-
-fn collapse_ws(s: &str) -> String {
-    s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 #[cfg(test)]

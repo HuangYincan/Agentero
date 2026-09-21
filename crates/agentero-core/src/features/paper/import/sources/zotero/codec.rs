@@ -10,6 +10,8 @@
 //! HTML tags literally and escaping them (`&lt;p&gt;`) on the next save,
 //! which destroys the markers.
 
+use crate::features::markdown::frontmatter::split_off_frontmatter;
+
 /// Opening marker prefix: `<!-- agentero:sync paper=<id> -->`.
 const MARKER_OPEN_PREFIX: &str = "<!-- agentero:sync paper=";
 const MARKER_OPEN_SUFFIX: &str = " -->";
@@ -84,45 +86,6 @@ pub fn strip_leaked_sync_blocks(md: &str) -> String {
         out.push('\n');
     }
     out
-}
-
-/// Split a document into (frontmatter including fences, rest). When there is
-/// no frontmatter the first element is empty.
-fn split_off_frontmatter(md: &str) -> (String, String) {
-    let trimmed = md.trim_start_matches('\u{feff}');
-    let lead = &md[..md.len() - trimmed.len()];
-    let Some(rest) = trimmed.strip_prefix("---") else {
-        return (String::new(), md.to_string());
-    };
-    let Some(rest2) = rest.strip_prefix(['\n', '\r']) else {
-        return (String::new(), md.to_string());
-    };
-    let mut search = rest2;
-    loop {
-        if let Some(after) = search.strip_prefix("---") {
-            if after.is_empty() || after.starts_with('\n') || after.starts_with('\r') {
-                let split = md.len() - after.len();
-                let (front, body) = md.split_at(split);
-                return (
-                    format!("{lead}{front}"),
-                    body.trim_start_matches(['\r', '\n']).to_string(),
-                );
-            }
-        }
-        let Some(idx) = search.find("\n---") else {
-            return (String::new(), md.to_string());
-        };
-        let after = &search[idx + 4..];
-        if after.is_empty() || after.starts_with('\n') || after.starts_with('\r') {
-            let split = md.len() - after.len();
-            let (front, body) = md.split_at(split);
-            return (
-                format!("{lead}{front}"),
-                body.trim_start_matches(['\r', '\n']).to_string(),
-            );
-        }
-        search = &search[idx + 1..];
-    }
 }
 
 /// Extract the paper id embedded in a marked note, if any.

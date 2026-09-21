@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 use std::time::Duration;
 
+use crate::features::paper::util::{str_field, str_field_at};
 use crate::features::scholar_api::client;
 use crate::features::scholar_api::identifiers::strip_arxiv_version;
 use crate::features::scholar_api::traits::AcademicApi;
@@ -395,20 +396,6 @@ impl SemanticScholarApi {
 
 fn is_arxiv_doi(doi: &str) -> bool {
     doi.to_ascii_lowercase().contains("10.48550/arxiv.")
-}
-
-fn str_field(v: &Value, key: &str) -> Option<String> {
-    v.get(key)
-        .and_then(|x| x.as_str())
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-}
-
-fn str_field_at(v: &Value, pointer: &str) -> Option<String> {
-    v.pointer(pointer)
-        .and_then(|x| x.as_str())
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
 }
 
 #[cfg(test)]

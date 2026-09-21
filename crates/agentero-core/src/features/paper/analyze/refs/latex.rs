@@ -1,5 +1,7 @@
 //! Shared LaTeX/text helpers for reference parsing (no regex crate; hand-written scanners).
 
+use crate::features::paper::util::collapse_ws;
+
 /// Strip TeX markup down to readable plain text: drops comments, commands,
 /// braces; keeps command arguments and common escapes; collapses whitespace.
 pub fn strip_tex(input: &str) -> String {
@@ -60,23 +62,6 @@ pub fn strip_tex(input: &str) -> String {
         }
     }
     collapse_ws(&out)
-}
-
-pub fn collapse_ws(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut last_space = true;
-    for c in s.chars() {
-        if c.is_whitespace() {
-            if !last_space {
-                out.push(' ');
-                last_space = true;
-            }
-        } else {
-            out.push(c);
-            last_space = false;
-        }
-    }
-    out.trim().to_string()
 }
 
 /// First plausible publication year (1900–2099, not embedded in a longer number).
@@ -187,8 +172,13 @@ pub fn extract_url(text: &str) -> Option<String> {
     None
 }
 
-/// Lowercased alphanumeric-only form for fuzzy title equality.
-pub fn normalize_title(s: &str) -> String {
+/// Comparison key for *exact-equality* title matching in reference parsing:
+/// ASCII alphanumerics lowercased with every separator dropped
+/// (`"Attention Is All You Need"` → `attentionisallyouneed`). Differs from
+/// `scholar_api::scoring::title_similarity_key` (Unicode-aware, keeps single
+/// spaces between words) and from the Zotero `title_match_key` (keeps
+/// punctuation, just folds whitespace).
+pub fn title_compact_key(s: &str) -> String {
     s.chars()
         .filter(|c| c.is_ascii_alphanumeric())
         .map(|c| c.to_ascii_lowercase())

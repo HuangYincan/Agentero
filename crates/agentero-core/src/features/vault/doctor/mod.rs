@@ -13,17 +13,19 @@ use crate::error::AppError;
 use crate::features::catalog::papers;
 pub use crate::features::catalog::papers::{DuplicateRepairResult, DuplicateReport};
 use crate::features::catalog::{self, papers::PaperRecord};
-use crate::features::wiki::frontmatter::{inspect_aliases, patch_aliases, AliasEdit};
+use crate::features::wiki::frontmatter::{
+    inspect_aliases, normalize_alias, patch_aliases, AliasEdit,
+};
 use crate::features::wiki::index::WikiIndex;
 use crate::features::wiki::models::{WikiCheckCounts, WikiCheckResult};
 use crate::features::wiki::rename::content_hash;
-use crate::fs::normalize_rel_separators;
+use crate::fs::{normalize_rel_separators, safe_relative_path};
 use rusqlite::{Connection, OpenFlags};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fs;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
@@ -264,15 +266,6 @@ pub(crate) fn issue(
         severity,
         path,
     }
-}
-
-/// Match the Wiki resolver's alias semantics.
-pub fn normalize_alias(value: &str) -> String {
-    value
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_lowercase()
 }
 
 fn distinct_aliases(aliases: &[String]) -> usize {
@@ -738,14 +731,6 @@ pub fn diagnose_with_index(vault: &Path, index: &WikiIndex) -> Result<DoctorRepo
         aliases,
         visual_marks,
     })
-}
-
-fn safe_relative_path(raw: &str) -> bool {
-    let path = Path::new(raw);
-    !path.is_absolute()
-        && path
-            .components()
-            .all(|component| matches!(component, Component::Normal(_) | Component::CurDir))
 }
 
 struct PlannedAliasWrite {

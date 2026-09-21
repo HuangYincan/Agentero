@@ -23,6 +23,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::AppError;
 
+/// Normalized identifier comparison key: trimmed, lowercased, with `-`, `_`
+/// and spaces removed (`10.1000/ABC-1` == `10.1000/abc1`).
+pub(crate) fn normalize_id(s: &str) -> String {
+    s.trim().to_lowercase().replace(['-', '_', ' '], "")
+}
+
 /// A normalized query handed to an [`AcademicApi`](traits::AcademicApi) source.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

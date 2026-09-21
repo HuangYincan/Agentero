@@ -5,6 +5,7 @@
 
 use async_trait::async_trait;
 
+use crate::features::paper::util::collapse_ws;
 use crate::features::scholar_api::client;
 use crate::features::scholar_api::traits::AcademicApi;
 use crate::features::scholar_api::{
@@ -306,10 +307,6 @@ fn article_id(xml: &str, kind: &str) -> Option<String> {
         }
     }
     None
-}
-
-fn collapse_ws(s: &str) -> String {
-    s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 #[cfg(test)]

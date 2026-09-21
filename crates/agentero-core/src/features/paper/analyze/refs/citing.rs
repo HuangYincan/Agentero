@@ -19,6 +19,7 @@
 use super::latex;
 use crate::error::AppError;
 use crate::features::catalog::papers;
+use crate::features::paper::util::str_field;
 use crate::features::scholar_api::sources::semantic_scholar::SemanticScholarApi;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -383,13 +384,6 @@ fn since_date(days: i64) -> String {
 }
 
 // ------------------------------------------------------------------ S2 parsing helpers
-
-fn str_field(v: &serde_json::Value, key: &str) -> Option<String> {
-    v.get(key)
-        .and_then(|x| x.as_str())
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-}
 
 fn parse_citing(cp: &serde_json::Value) -> Option<CitingRaw> {
     let s2_id = str_field(cp, "paperId")?;

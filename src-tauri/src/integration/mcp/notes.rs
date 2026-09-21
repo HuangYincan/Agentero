@@ -2,6 +2,7 @@
 
 use crate::core::error::AppError;
 use crate::core::fs::{atomic_write, sanitize_vault_rel};
+use agentero_core::features::markdown::frontmatter::split_off_frontmatter;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -120,45 +121,6 @@ fn normalize_trailing(md: &str) -> String {
         s.push('\n');
     }
     s
-}
-
-/// Split a document into (frontmatter including fences, rest). Empty front when
-/// the file has no YAML block.
-pub fn split_off_frontmatter(md: &str) -> (String, String) {
-    let trimmed = md.trim_start_matches('\u{feff}');
-    let lead_len = md.len() - trimmed.len();
-    let Some(rest) = trimmed.strip_prefix("---") else {
-        return (String::new(), md.to_string());
-    };
-    let Some(rest2) = rest.strip_prefix(['\n', '\r']) else {
-        return (String::new(), md.to_string());
-    };
-    let mut search = rest2;
-    loop {
-        if let Some(after) = search.strip_prefix("---") {
-            if after.is_empty() || after.starts_with('\n') || after.starts_with('\r') {
-                let split = md.len() - after.len();
-                let (front, body) = md.split_at(split);
-                return (
-                    format!("{}{front}", &md[..lead_len]),
-                    body.trim_start_matches(['\r', '\n']).to_string(),
-                );
-            }
-        }
-        let Some(idx) = search.find("\n---") else {
-            return (String::new(), md.to_string());
-        };
-        let after = &search[idx + 4..];
-        if after.is_empty() || after.starts_with('\n') || after.starts_with('\r') {
-            let split = md.len() - after.len();
-            let (front, body) = md.split_at(split);
-            return (
-                format!("{}{front}", &md[..lead_len]),
-                body.trim_start_matches(['\r', '\n']).to_string(),
-            );
-        }
-        search = after;
-    }
 }
 
 #[cfg(test)]
