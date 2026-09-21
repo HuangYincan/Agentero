@@ -299,7 +299,6 @@
 		"lifecycleProbing": "Probing ACP…",
 		"lifecycleUninstalling": "Uninstalling…",
 		"npmCacheWriteFailed": "npm cannot write to its cache. Agentero's managed installs use an isolated cache directory automatically — please retry. If it persists, run {{cacheCommand}} in Command Prompt and retry, close other Node/npm processes, allow Node.js in your antivirus, or correct the cache folder permissions.",
-		"uninstallAgent": "Uninstall",
 		"uninstallAgentAria": "Uninstall {{name}} agent",
 		"uninstallAgentTitle": "Uninstall agent",
 		"uninstallSuccess": "Uninstalled {{name}}",
@@ -415,7 +414,6 @@
 		"providerConfig": {
 			"section": "API Services",
 			"confirm": "Confirm",
-			"openDocs": "Open provider website",
 			"openDocsLabel": "Get an API key",
 			"notConfigured": "Not configured",
 			"apiKey": {

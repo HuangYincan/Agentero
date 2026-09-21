@@ -25,7 +25,6 @@
 	},
 	"codeBlock": {
 		"languageLabel": "代码语言",
-		"language": "语言",
 		"plainText": "纯文本",
 		"search": "搜索语言…",
 		"noMatch": "没有匹配的语言",
@@ -151,15 +150,10 @@
 		"unsupported": "该嵌入类型会保留为 Markdown，但暂不渲染。",
 		"error": "无法加载嵌入内容。",
 		"openSource": "打开 {{target}}",
-		"annotationHighlight": "高亮批注",
-		"annotationVisual": "视觉批注",
 		"annotationPage": "第 {{page}} 页",
-		"annotationExpand": "展开",
-		"annotationCollapse": "收起",
 		"untitled": "嵌入",
 		"annotationRoleUser": "用户",
-		"annotationRoleAssistant": "助手",
-		"annotationNoTranscript": "此批注暂无对话记录。"
+		"annotationRoleAssistant": "助手"
 	},
 	"frontmatter": {
 		"title": "属性",

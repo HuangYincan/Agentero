@@ -26,9 +26,6 @@
 			"description": "开始对话后，消息会显示在这里"
 		}
 	},
-	"attachments": {
-		"remove": "移除"
-	},
 	"modelSelector": {
 		"label": "模型选择器"
 	},

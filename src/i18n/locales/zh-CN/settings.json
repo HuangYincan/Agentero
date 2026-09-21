@@ -299,7 +299,6 @@
 		"lifecycleProbing": "正在探测 ACP…",
 		"lifecycleUninstalling": "正在卸载…",
 		"npmCacheWriteFailed": "npm 无法写入缓存。Agentero 的受管安装会自动使用独立缓存目录——请重试。若仍失败，请在“命令提示符”中运行 {{cacheCommand}} 后重试，并关闭其他 Node/npm 进程、在杀毒软件中允许 Node.js、修正缓存目录权限。",
-		"uninstallAgent": "卸载",
 		"uninstallAgentAria": "卸载 {{name}} Agent",
 		"uninstallAgentTitle": "卸载 Agent",
 		"uninstallSuccess": "已卸载 {{name}}",
@@ -415,7 +414,6 @@
 		"providerConfig": {
 			"section": "API 服务",
 			"confirm": "确定",
-			"openDocs": "打开服务商网站",
 			"openDocsLabel": "获取 API Key",
 			"notConfigured": "未配置",
 			"apiKey": {

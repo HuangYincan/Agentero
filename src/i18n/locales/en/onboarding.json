@@ -70,7 +70,6 @@
 		"configureOwnDesc": "Bring your own Paddle, MinerU, or OpenAI-compatible API key for the best accuracy on figures and formulas.",
 		"useDefault": "Use the free on-device model",
 		"useDefaultDesc": "Runs entirely on your device with no setup and works offline, but uses system resources, is slower, and is less accurate on complex layouts.",
-		"openDocs": "Open provider website",
 		"openDocsLabel": "Get an API key",
 		"test": "Test",
 		"probeIdle": "Not tested yet",

@@ -20,7 +20,6 @@
 			"rejectAlways": "始终拒绝"
 		}
 	},
-	"missing": "（缺失）",
 	"switchAgent": "切换 ACP Agent",
 	"configBar": {
 		"label": "模型与会话选项"
@@ -46,7 +45,6 @@
 		}
 	},
 	"tabs": {
-		"open": "打开会话 {{number}}",
 		"new": "新建会话"
 	},
 	"agentMenu": {
@@ -97,7 +95,6 @@
 		"mentionEnterFolder": "进入 {{name}}",
 		"mentionBack": "返回上级目录",
 		"mentionEmptyFolder": "此文件夹中没有可选项",
-		"fast": "快速",
 		"fastToggle": "切换快速模式",
 		"collaborationTooltip": "会话模式",
 		"collaboration": {
@@ -177,7 +174,6 @@
 		"searchOrCustomPlaceholder": "搜索或输入模型 id……",
 		"customGroup": "自定义",
 		"useCustom": "使用 “{{id}}”",
-		"emptyNone": "暂无模型。先运行一次，让 ACP Agent 上报可用模型。",
 		"emptyNoneCustom": "暂无模型。可在上方输入模型 id 以使用第三方模型。",
 		"emptyNoMatch": "无匹配项。输入完整模型 id 可作为自定义模型使用。"
 	},

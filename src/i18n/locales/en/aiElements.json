@@ -26,9 +26,6 @@
 			"description": "Start a conversation to see messages here"
 		}
 	},
-	"attachments": {
-		"remove": "Remove"
-	},
 	"modelSelector": {
 		"label": "Model Selector"
 	},
