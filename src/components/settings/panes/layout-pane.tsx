@@ -2,6 +2,13 @@ import { ChevronRight, ExternalLink, RefreshCw, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+	PROVIDER_INPUT_CLASS,
+	ProbeDot,
+	ProviderCard,
+	ProviderCardHeader,
+	ProviderFieldRow,
+} from "@/components/settings/provider-card";
+import {
 	HelpLabel,
 	PageTitle,
 	SettingsGroup,
@@ -39,6 +46,7 @@ import {
 } from "@/components/ui/tooltip";
 import { BUILTIN_PROVIDER_ID } from "@/lib/core/builtin";
 import { errorMessage, notifyError, notifySuccess } from "@/lib/core/notify";
+import { openExternalUrl } from "@/lib/core/open-external";
 import { isTauri } from "@/lib/core/tauri";
 import { cn } from "@/lib/core/utils";
 import {
@@ -73,14 +81,7 @@ import {
 	PROVIDER_MODEL_PRESETS,
 } from "@/lib/pdf/layout/settings";
 import type { AppSettings } from "@/lib/settings";
-
-function openExternalUrl(url: string): void {
-	void import("@tauri-apps/plugin-opener")
-		.then(({ openUrl }) => openUrl(url))
-		.catch(() => {
-			window.open(url, "_blank", "noopener,noreferrer");
-		});
-}
+import type { ProbeStatus } from "@/lib/ui/probe-status";
 
 const EMPTY_PROVIDER_CONFIG: LayoutProviderConfig = {
 	apiKey: "",
@@ -91,33 +92,12 @@ const EMPTY_PROVIDER_CONFIG: LayoutProviderConfig = {
 	isOcr: false,
 };
 
-type ProbeStatus = "idle" | "probing" | "ok" | "fail";
-
-function probeDotClass(status: ProbeStatus, configured: boolean): string {
-	switch (status) {
-		case "ok":
-			return "bg-emerald-500";
-		case "fail":
-			return "bg-destructive";
-		case "probing":
-			return "bg-amber-500 animate-pulse";
-		default:
-			return configured ? "bg-muted-foreground/50" : "bg-muted-foreground/35";
-	}
-}
-
-function probeStatusLabelKey(status: ProbeStatus): string {
-	switch (status) {
-		case "ok":
-			return "layout.providerConfig.probeOk";
-		case "fail":
-			return "layout.providerConfig.probeFail";
-		case "probing":
-			return "layout.providerConfig.probeProbing";
-		default:
-			return "layout.providerConfig.probeIdle";
-	}
-}
+const PROBE_LABEL_KEYS = {
+	ok: "layout.providerConfig.probeOk",
+	fail: "layout.providerConfig.probeFail",
+	probing: "layout.providerConfig.probeProbing",
+	idle: "layout.providerConfig.probeIdle",
+} as const satisfies Record<ProbeStatus, string>;
 
 export function LayoutPane({
 	settings,
@@ -534,71 +514,61 @@ function ProviderConfigCard({
 		};
 	}, []);
 
+	const statusLabel = t(PROBE_LABEL_KEYS[status]);
+
 	return (
-		<div className="rounded-lg border bg-card px-3 py-2.5">
-			<div className="mb-2 flex items-center justify-between gap-2">
-				<div className="flex min-w-0 items-center gap-1.5">
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<span
-								role="status"
-								aria-label={t(
-									probeStatusLabelKey(
-										status,
-									) as "layout.providerConfig.probeIdle",
-								)}
-								className={cn(
-									"inline-block size-1.5 shrink-0 rounded-full",
-									probeDotClass(status, configured),
-								)}
-							/>
-						</TooltipTrigger>
-						<TooltipContent>
+		<ProviderCard>
+			<ProviderCardHeader
+				left={
+					<>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<ProbeDot
+									status={status}
+									configured={configured}
+									label={statusLabel}
+								/>
+							</TooltipTrigger>
+							<TooltipContent>{statusLabel}</TooltipContent>
+						</Tooltip>
+						<span className="truncate font-medium text-sm">
 							{t(
-								probeStatusLabelKey(
-									status,
-								) as "layout.providerConfig.probeIdle",
+								`layout.providerConfig.providerName.${provider.id}` as "layout.providerConfig.providerName.paddle",
 							)}
-						</TooltipContent>
-					</Tooltip>
-					<span className="truncate font-medium text-sm">
-						{t(
-							`layout.providerConfig.providerName.${provider.id}` as "layout.providerConfig.providerName.paddle",
-						)}
-					</span>
+						</span>
+						<Button
+							type="button"
+							variant="link"
+							size="xs"
+							className="-ml-1.5 h-auto shrink-0 px-1.5 text-primary"
+							onClick={() =>
+								openExternalUrl(LAYOUT_PROVIDER_DOCS_URLS[provider.id])
+							}
+						>
+							<ExternalLink data-icon="inline-start" className="size-3" />
+							{t("layout.providerConfig.openDocsLabel")}
+						</Button>
+					</>
+				}
+				right={
 					<Button
 						type="button"
-						variant="link"
+						variant="outline"
 						size="xs"
-						className="-ml-1.5 h-auto shrink-0 px-1.5 text-primary"
-						onClick={() =>
-							openExternalUrl(LAYOUT_PROVIDER_DOCS_URLS[provider.id])
-						}
+						disabled={status === "probing"}
+						onClick={() => void confirmProvider()}
 					>
-						<ExternalLink data-icon="inline-start" className="size-3" />
-						{t("layout.providerConfig.openDocsLabel")}
+						{t("layout.providerConfig.confirm")}
 					</Button>
-				</div>
-				<Button
-					type="button"
-					variant="outline"
-					size="xs"
-					disabled={status === "probing"}
-					onClick={() => void confirmProvider()}
-				>
-					{t("layout.providerConfig.confirm")}
-				</Button>
-			</div>
+				}
+			/>
 
 			<div className="space-y-2">
 				{provider.requiresApiKey ? (
-					<div className="flex items-center gap-2">
-						<Label
-							htmlFor={`layout-provider-${provider.id}-api-key`}
-							className="w-20 shrink-0 font-normal text-muted-foreground text-xs"
-						>
-							{t("layout.providerConfig.apiKey.label")}
-						</Label>
+					<ProviderFieldRow
+						label={t("layout.providerConfig.apiKey.label")}
+						htmlFor={`layout-provider-${provider.id}-api-key`}
+					>
 						<Input
 							id={`layout-provider-${provider.id}-api-key`}
 							type="password"
@@ -606,7 +576,7 @@ function ProviderConfigCard({
 							placeholder={t(
 								`layout.providerConfig.apiKey.placeholder.${provider.id}` as "layout.providerConfig.apiKey.placeholder.paddle",
 							)}
-							className="h-8 min-w-0 flex-1 font-mono text-xs placeholder:text-muted-foreground/50"
+							className={PROVIDER_INPUT_CLASS}
 							spellCheck={false}
 							autoComplete="off"
 							onChange={(e) => {
@@ -631,45 +601,39 @@ function ProviderConfigCard({
 							}}
 							onFocus={(e) => e.target.select()}
 						/>
-					</div>
+					</ProviderFieldRow>
 				) : null}
 				{provider.supportsBaseUrl ? (
-					<div className="flex items-center gap-2">
-						<Label
-							htmlFor={`layout-provider-${provider.id}-base-url`}
-							className="w-20 shrink-0 font-normal text-muted-foreground text-xs"
-						>
-							{t("layout.providerConfig.baseUrl.label")}
-						</Label>
+					<ProviderFieldRow
+						label={t("layout.providerConfig.baseUrl.label")}
+						htmlFor={`layout-provider-${provider.id}-base-url`}
+					>
 						<Input
 							id={`layout-provider-${provider.id}-base-url`}
 							type="text"
 							value={displayBaseUrl}
 							placeholder={LAYOUT_PROVIDER_DEFAULT_BASE_URLS[provider.id]}
-							className="h-8 min-w-0 flex-1 font-mono text-xs placeholder:text-muted-foreground/50"
+							className={PROVIDER_INPUT_CLASS}
 							spellCheck={false}
 							autoComplete="off"
 							onChange={(e) =>
 								setDraft((prev) => ({ ...prev, baseUrl: e.target.value }))
 							}
 						/>
-					</div>
+					</ProviderFieldRow>
 				) : null}
 				{provider.supportsModel ? (
-					<div className="flex items-center gap-2">
-						<Label
-							htmlFor={`layout-provider-${provider.id}-model`}
-							className="w-20 shrink-0 font-normal text-muted-foreground text-xs"
-						>
-							{t("layout.providerConfig.model.label")}
-						</Label>
+					<ProviderFieldRow
+						label={t("layout.providerConfig.model.label")}
+						htmlFor={`layout-provider-${provider.id}-model`}
+					>
 						<Input
 							id={`layout-provider-${provider.id}-model`}
 							type="text"
 							value={displayModel}
 							placeholder={modelPresets[0]}
 							list={`layout-provider-${provider.id}-model-presets`}
-							className="h-8 min-w-0 flex-1 font-mono text-xs placeholder:text-muted-foreground/50"
+							className={PROVIDER_INPUT_CLASS}
 							spellCheck={false}
 							autoComplete="off"
 							onChange={(e) =>
@@ -681,29 +645,26 @@ function ProviderConfigCard({
 								<option key={preset} value={preset} />
 							))}
 						</datalist>
-					</div>
+					</ProviderFieldRow>
 				) : null}
 				{provider.supportsPrompt ? (
-					<div className="flex items-center gap-2">
-						<Label
-							htmlFor={`layout-provider-${provider.id}-prompt`}
-							className="w-20 shrink-0 font-normal text-muted-foreground text-xs"
-						>
-							{t("layout.providerConfig.prompt.label")}
-						</Label>
+					<ProviderFieldRow
+						label={t("layout.providerConfig.prompt.label")}
+						htmlFor={`layout-provider-${provider.id}-prompt`}
+					>
 						<Input
 							id={`layout-provider-${provider.id}-prompt`}
 							type="text"
 							value={displayPrompt}
 							placeholder={t("layout.providerConfig.prompt.placeholder")}
-							className="h-8 min-w-0 flex-1 font-mono text-xs placeholder:text-muted-foreground/50"
+							className={PROVIDER_INPUT_CLASS}
 							spellCheck={false}
 							autoComplete="off"
 							onChange={(e) =>
 								setDraft((prev) => ({ ...prev, prompt: e.target.value }))
 							}
 						/>
-					</div>
+					</ProviderFieldRow>
 				) : null}
 				{provider.supportsLanguage || provider.supportsOcr ? (
 					<Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
@@ -724,16 +685,15 @@ function ProviderConfigCard({
 						</CollapsibleTrigger>
 						<CollapsibleContent className="space-y-2 pt-2">
 							{provider.supportsLanguage ? (
-								<div className="flex items-center gap-2">
-									<Label
-										htmlFor={`layout-provider-${provider.id}-language`}
-										className="w-20 shrink-0 font-normal text-muted-foreground text-xs"
-									>
+								<ProviderFieldRow
+									label={
 										<HelpLabel
 											label={t("layout.providerConfig.language.label")}
 											help={t("layout.providerConfig.language.help")}
 										/>
-									</Label>
+									}
+									htmlFor={`layout-provider-${provider.id}-language`}
+								>
 									<Select
 										value={displayLanguage}
 										onValueChange={(value) =>
@@ -757,19 +717,18 @@ function ProviderConfigCard({
 											))}
 										</SelectContent>
 									</Select>
-								</div>
+								</ProviderFieldRow>
 							) : null}
 							{provider.supportsOcr ? (
-								<div className="flex items-center gap-2">
-									<Label
-										htmlFor={`layout-provider-${provider.id}-force-ocr`}
-										className="w-20 shrink-0 font-normal text-muted-foreground text-xs"
-									>
+								<ProviderFieldRow
+									label={
 										<HelpLabel
 											label={t("layout.providerConfig.forceOcr.label")}
 											help={t("layout.providerConfig.forceOcr.help")}
 										/>
-									</Label>
+									}
+									htmlFor={`layout-provider-${provider.id}-force-ocr`}
+								>
 									<Switch
 										id={`layout-provider-${provider.id}-force-ocr`}
 										size="sm"
@@ -781,12 +740,12 @@ function ProviderConfigCard({
 											}))
 										}
 									/>
-								</div>
+								</ProviderFieldRow>
 							) : null}
 						</CollapsibleContent>
 					</Collapsible>
 				) : null}
 			</div>
-		</div>
+		</ProviderCard>
 	);
 }

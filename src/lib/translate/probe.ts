@@ -12,6 +12,7 @@ import type {
 	TranslateProviderConfig,
 } from "@/lib/translate/types";
 import { FREE_MT_PROVIDER_IDS } from "@/lib/translate/types";
+import type { ProbeStatus } from "@/lib/ui/probe-status";
 
 /** Short probe sample: en → zh-CN, minimal payload. */
 const PROBE_TEXT = "Hi";
@@ -21,7 +22,7 @@ const PROBE_TARGET = "zh-CN";
 /** Host timeout for each probe request (ms). */
 export const TRANSLATE_PROBE_TIMEOUT_MS = 5_000;
 
-export type FreeMtProbeStatus = "idle" | "probing" | "ok" | "fail";
+export type FreeMtProbeStatus = ProbeStatus;
 
 export type FreeMtProbeMap = Partial<
 	Record<FreeTranslateProviderId, FreeMtProbeStatus>

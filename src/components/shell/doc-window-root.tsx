@@ -15,10 +15,11 @@ import { useSettings, useVaultStore } from "@/hooks/use-app-stores";
 import { useExternalFileDrop } from "@/hooks/use-external-file-drop";
 import { useNativeSelectAllGuard } from "@/hooks/use-native-select-all-guard";
 import { useVaultFileEvents } from "@/hooks/use-vault-file-events";
-import { isMacOS, isTauri } from "@/lib/core/tauri";
+import { isMacOS } from "@/lib/core/tauri";
 import { isLibraryVirtualPath, isTrashVirtualPath } from "@/lib/paper/api";
 import { refreshLibrary } from "@/lib/paper/library-store";
 import { applyDocumentChrome, resolveFontFamilyCss } from "@/lib/settings";
+import { closeCurrentWindow } from "@/lib/shell/close-window";
 import { readDocWindowParams } from "@/lib/shell/doc-window";
 import { openSettingsWindow } from "@/lib/shell/settings-window";
 import { openRecentVault } from "@/lib/vault/actions";
@@ -44,18 +45,6 @@ import {
 	syncTabSeedsForPath,
 } from "@/lib/workspace/tabs";
 import type { CenterViewMode } from "@/lib/workspace/viewer";
-
-function closeCurrentWindow() {
-	if (!isTauri()) return;
-	void (async () => {
-		try {
-			const { getCurrentWindow } = await import("@tauri-apps/api/window");
-			await getCurrentWindow().close();
-		} catch {
-			// ignore
-		}
-	})();
-}
 
 // DocView's memo compares domain objects by identity; the popout never shows
 // Library / PDF-chrome surfaces, so constant no-op stubs keep it that way.

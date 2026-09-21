@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChoiceCard } from "@/components/onboarding/choice-card";
 import type { OnboardingStepId } from "@/components/onboarding/flow";
+import { ProbeDot } from "@/components/settings/provider-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,7 +29,7 @@ import {
 	BUILTIN_PROVIDER_ID,
 	loadBuiltinProviderStatus,
 } from "@/lib/core/builtin";
-import { cn } from "@/lib/core/utils";
+import { openExternalUrl } from "@/lib/core/open-external";
 import type {
 	AppSettings,
 	CommercialTranslateProviderId,
@@ -46,58 +47,20 @@ import {
 	maskTranslateApiKey,
 	probeCommercialMtProvider,
 } from "@/lib/translate";
-import { DEFAULT_TRANSLATE_SETTINGS } from "@/lib/translate/defaults";
-
-function openExternalUrl(url: string): void {
-	void import("@tauri-apps/plugin-opener")
-		.then(({ openUrl }) => openUrl(url))
-		.catch(() => {
-			window.open(url, "_blank", "noopener,noreferrer");
-		});
-}
+import {
+	DEFAULT_TRANSLATE_SETTINGS,
+	EMPTY_TRANSLATE_PROVIDER_CONFIG,
+} from "@/lib/translate/defaults";
+import type { ProbeStatus } from "@/lib/ui/probe-status";
 
 const FIRST_COMMERCIAL_PROVIDER: CommercialTranslateProviderId = "deepl";
 
-const EMPTY_PROVIDER_CONFIG: TranslateProviderConfig = {
-	apiKey: "",
-	baseUrl: "",
-	region: "",
-	model: "",
-};
-
-type ProbeStatus = "idle" | "probing" | "ok" | "fail";
-
-type ProbeLabelKey =
-	| "translate.probeOk"
-	| "translate.probeFail"
-	| "translate.probeProbing"
-	| "translate.probeIdle";
-
-function probeDotClass(status: ProbeStatus): string {
-	switch (status) {
-		case "ok":
-			return "bg-emerald-500";
-		case "fail":
-			return "bg-destructive";
-		case "probing":
-			return "bg-amber-500 animate-pulse";
-		default:
-			return "bg-muted-foreground/35";
-	}
-}
-
-function probeStatusLabelKey(status: ProbeStatus): ProbeLabelKey {
-	switch (status) {
-		case "ok":
-			return "translate.probeOk";
-		case "fail":
-			return "translate.probeFail";
-		case "probing":
-			return "translate.probeProbing";
-		default:
-			return "translate.probeIdle";
-	}
-}
+const PROBE_LABEL_KEYS = {
+	ok: "translate.probeOk",
+	fail: "translate.probeFail",
+	probing: "translate.probeProbing",
+	idle: "translate.probeIdle",
+} as const satisfies Record<ProbeStatus, string>;
 
 export function TranslateStep({
 	settings,
@@ -168,7 +131,8 @@ export function TranslateStep({
 	const confirmCommercial = async () => {
 		if (!isCommercial) return;
 		const pid = tr.provider as CommercialTranslateProviderId;
-		const storedCfg = tr.providerConfigs[pid] ?? EMPTY_PROVIDER_CONFIG;
+		const storedCfg =
+			tr.providerConfigs[pid] ?? EMPTY_TRANSLATE_PROVIDER_CONFIG;
 		const apiKey = (draft.apiKey ?? storedCfg.apiKey).trim();
 		const baseUrl = (draft.baseUrl ?? storedCfg.baseUrl)
 			.trim()
@@ -277,14 +241,10 @@ export function TranslateStep({
 					</TooltipContent>
 				</Tooltip>
 				<div className="ml-auto flex items-center gap-2">
-					<span
-						role="status"
-						aria-label={t(probeStatusLabelKey(probe))}
-						title={t(probeStatusLabelKey(probe))}
-						className={cn(
-							"inline-block size-1.5 shrink-0 rounded-full",
-							probeDotClass(probe),
-						)}
+					<ProbeDot
+						status={probe}
+						label={t(PROBE_LABEL_KEYS[probe])}
+						title={t(PROBE_LABEL_KEYS[probe])}
 					/>
 					<Button
 						type="button"

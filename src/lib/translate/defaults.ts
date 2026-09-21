@@ -1,4 +1,7 @@
-import type { TranslateSettings } from "@/lib/translate/types";
+import type {
+	TranslateProviderConfig,
+	TranslateSettings,
+} from "@/lib/translate/types";
 
 export const DEFAULT_TRANSLATE_SETTINGS: TranslateSettings = {
 	/** Prefer Tencent Transmart: current no-key default with better availability. */
@@ -11,4 +14,12 @@ export const DEFAULT_TRANSLATE_SETTINGS: TranslateSettings = {
 	agentId: "",
 	modelId: "",
 	customPrompt: "",
+};
+
+/** Blank commercial provider config (missing draft/stored entry fallback). */
+export const EMPTY_TRANSLATE_PROVIDER_CONFIG: TranslateProviderConfig = {
+	apiKey: "",
+	baseUrl: "",
+	region: "",
+	model: "",
 };

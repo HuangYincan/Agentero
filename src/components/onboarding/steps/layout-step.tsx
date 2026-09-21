@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChoiceCard } from "@/components/onboarding/choice-card";
 import type { OnboardingStepId } from "@/components/onboarding/flow";
+import { ProbeDot } from "@/components/settings/provider-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,7 +19,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/core/utils";
+import { openExternalUrl } from "@/lib/core/open-external";
 import {
 	persistLayoutProviderConfig,
 	probeLayoutProvider,
@@ -34,52 +35,18 @@ import {
 	type LayoutProviderId,
 } from "@/lib/pdf/layout/settings";
 import type { AppSettings } from "@/lib/settings";
-
-function openExternalUrl(url: string): void {
-	void import("@tauri-apps/plugin-opener")
-		.then(({ openUrl }) => openUrl(url))
-		.catch(() => {
-			window.open(url, "_blank", "noopener,noreferrer");
-		});
-}
+import type { ProbeStatus } from "@/lib/ui/probe-status";
 
 const REMOTE_PROVIDERS = Object.values(LAYOUT_PROVIDERS).filter(
 	isRemoteLayoutProvider,
 );
 
-type ProbeStatus = "idle" | "probing" | "ok" | "fail";
-
-type ProbeLabelKey =
-	| "layout.probeOk"
-	| "layout.probeFail"
-	| "layout.probeProbing"
-	| "layout.probeIdle";
-
-function probeDotClass(status: ProbeStatus): string {
-	switch (status) {
-		case "ok":
-			return "bg-emerald-500";
-		case "fail":
-			return "bg-destructive";
-		case "probing":
-			return "bg-amber-500 animate-pulse";
-		default:
-			return "bg-muted-foreground/35";
-	}
-}
-
-function probeStatusLabelKey(status: ProbeStatus): ProbeLabelKey {
-	switch (status) {
-		case "ok":
-			return "layout.probeOk";
-		case "fail":
-			return "layout.probeFail";
-		case "probing":
-			return "layout.probeProbing";
-		default:
-			return "layout.probeIdle";
-	}
-}
+const PROBE_LABEL_KEYS = {
+	ok: "layout.probeOk",
+	fail: "layout.probeFail",
+	probing: "layout.probeProbing",
+	idle: "layout.probeIdle",
+} as const satisfies Record<ProbeStatus, string>;
 
 export function LayoutStep({
 	settings,
@@ -216,14 +183,10 @@ export function LayoutStep({
 					{t("layout.openDocsLabel")}
 				</Button>
 				<div className="ml-auto flex items-center gap-2">
-					<span
-						role="status"
-						aria-label={t(probeStatusLabelKey(probe))}
-						title={t(probeStatusLabelKey(probe))}
-						className={cn(
-							"inline-block size-1.5 shrink-0 rounded-full",
-							probeDotClass(probe),
-						)}
+					<ProbeDot
+						status={probe}
+						label={t(PROBE_LABEL_KEYS[probe])}
+						title={t(PROBE_LABEL_KEYS[probe])}
 					/>
 					<Button
 						type="button"

@@ -17,6 +17,7 @@ import {
 } from "@/lib/agent/citation-href";
 import { errorText } from "@/lib/core/error";
 import { notifyError, notifyUndo, notifyWarning } from "@/lib/core/notify";
+import { openExternalUrl } from "@/lib/core/open-external";
 import { closeTopOverlay } from "@/lib/core/overlay-stack";
 import { isTauri } from "@/lib/core/tauri";
 import { lifecycle } from "@/lib/lifecycle";
@@ -67,6 +68,7 @@ import {
 	plazaSourceForPath,
 } from "@/lib/plaza";
 import { loadSettings } from "@/lib/settings";
+import { closeCurrentWindow } from "@/lib/shell/close-window";
 import { setLayoutMode } from "@/lib/shell/ui-store";
 import {
 	ensureLocalFsScope,
@@ -876,15 +878,7 @@ export function openTranslationTab(
 }
 
 export function closeWindow(): void {
-	if (!isTauri()) return;
-	void (async () => {
-		try {
-			const { getCurrentWindow } = await import("@tauri-apps/api/window");
-			await getCurrentWindow().close();
-		} catch {
-			// window close unavailable outside the desktop shell
-		}
-	})();
+	closeCurrentWindow();
 }
 
 /**
@@ -1206,11 +1200,7 @@ export function openCitation(source: string): void {
 	const trimmed = rewriteCitationHrefToPdf(cleanCitationHref(source));
 	if (!trimmed) return;
 	if (/^https?:\/\//i.test(trimmed)) {
-		void import("@tauri-apps/plugin-opener")
-			.then(({ openUrl }) => openUrl(trimmed))
-			.catch(() => {
-				window.open(trimmed, "_blank", "noopener,noreferrer");
-			});
+		openExternalUrl(trimmed);
 		return;
 	}
 

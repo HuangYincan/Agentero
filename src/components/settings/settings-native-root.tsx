@@ -11,6 +11,7 @@ import {
 	saveSettingsAsync,
 	subscribeSettings,
 } from "@/lib/settings";
+import { closeCurrentWindow } from "@/lib/shell/close-window";
 import { SettingsContent } from "./settings-content";
 
 function readSearchParams() {
@@ -18,18 +19,6 @@ function readSearchParams() {
 	const section = (params.get("section") ?? "general") as SettingsSection;
 	const vaultPath = params.get("vault_path");
 	return { section, vaultPath };
-}
-
-function closeCurrentWindow() {
-	void (async () => {
-		if (!isTauri()) return;
-		try {
-			const { getCurrentWindow } = await import("@tauri-apps/api/window");
-			await getCurrentWindow().close();
-		} catch (e) {
-			console.warn("[settings-native-root] close failed", e);
-		}
-	})();
 }
 
 /**

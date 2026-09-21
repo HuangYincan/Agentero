@@ -6,6 +6,13 @@ import {
 	useAgentModelCatalog,
 } from "@/components/settings/agent-model-picker";
 import {
+	PROVIDER_INPUT_CLASS,
+	ProbeDot,
+	ProviderCard,
+	ProviderCardHeader,
+	ProviderFieldRow,
+} from "@/components/settings/provider-card";
+import {
 	PageTitle,
 	SettingsGroup,
 	SettingsRow,
@@ -13,7 +20,6 @@ import {
 import { useBuiltinProviderAvailable } from "@/components/settings/use-builtin-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
 	Select,
 	SelectContent,
@@ -29,8 +35,8 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { BUILTIN_PROVIDER_ID } from "@/lib/core/builtin";
+import { openExternalUrl } from "@/lib/core/open-external";
 import { isTauri } from "@/lib/core/tauri";
-import { cn } from "@/lib/core/utils";
 import type {
 	AppSettings,
 	CommercialTranslateProviderId,
@@ -58,21 +64,8 @@ import {
 	probeCommercialMtProvider,
 	probeFreeMtProviders,
 } from "@/lib/translate";
-
-function openExternalUrl(url: string): void {
-	void import("@tauri-apps/plugin-opener")
-		.then(({ openUrl }) => openUrl(url))
-		.catch(() => {
-			window.open(url, "_blank", "noopener,noreferrer");
-		});
-}
-
-const EMPTY_PROVIDER_CONFIG: TranslateProviderConfig = {
-	apiKey: "",
-	baseUrl: "",
-	region: "",
-	model: "",
-};
+import { EMPTY_TRANSLATE_PROVIDER_CONFIG } from "@/lib/translate/defaults";
+import type { ProbeStatus } from "@/lib/ui/probe-status";
 
 /** Resolve API key for save/probe: draft wins; otherwise keep stored (may be mask). */
 function resolveApiKeyDraft(draft: string | undefined, stored: string): string {
@@ -82,21 +75,12 @@ function resolveApiKeyDraft(draft: string | undefined, stored: string): string {
 
 type ProviderStatusKind = FreeMtProbeStatus | "unconfigured";
 
-function providerStatusDotClass(kind: ProviderStatusKind): string {
-	switch (kind) {
-		case "ok":
-			return "bg-emerald-500";
-		case "fail":
-			return "bg-destructive";
-		case "probing":
-			return "bg-amber-500 animate-pulse";
-		case "unconfigured":
-			return "bg-muted-foreground/35";
-		default:
-			// idle — configured but not checked yet
-			return "bg-muted-foreground/50";
-	}
-}
+const PROBE_LABEL_KEYS = {
+	ok: "translate.provider.probeOk",
+	fail: "translate.provider.probeFail",
+	probing: "translate.provider.probeProbing",
+	idle: "translate.provider.probeIdle",
+} as const satisfies Record<ProbeStatus, string>;
 
 function ProviderStatusDot({
 	kind,
@@ -108,31 +92,15 @@ function ProviderStatusDot({
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>
-				<span
-					role="status"
-					aria-label={label}
-					className={cn(
-						"inline-block size-1.5 shrink-0 rounded-full",
-						providerStatusDotClass(kind),
-					)}
+				<ProbeDot
+					status={kind === "unconfigured" ? "idle" : kind}
+					configured={kind !== "unconfigured"}
+					label={label}
 				/>
 			</TooltipTrigger>
 			<TooltipContent>{label}</TooltipContent>
 		</Tooltip>
 	);
-}
-
-function probeStatusLabelKey(status: FreeMtProbeStatus): string {
-	switch (status) {
-		case "ok":
-			return "translate.provider.probeOk";
-		case "fail":
-			return "translate.provider.probeFail";
-		case "probing":
-			return "translate.provider.probeProbing";
-		default:
-			return "translate.provider.probeIdle";
-	}
 }
 
 export function TranslatePane({
@@ -155,7 +123,7 @@ export function TranslatePane({
 	const showAgent = tr.provider === "agent";
 	const getProviderConfig = useCallback(
 		(id: CommercialTranslateProviderId): TranslateProviderConfig =>
-			tr.providerConfigs[id] ?? EMPTY_PROVIDER_CONFIG,
+			tr.providerConfigs[id] ?? EMPTY_TRANSLATE_PROVIDER_CONFIG,
 		[tr.providerConfigs],
 	);
 	/**
@@ -411,13 +379,7 @@ export function TranslatePane({
 											? (commercialProbeMap[s.id] ?? "idle")
 											: undefined;
 								const statusLabel =
-									status != null
-										? t(
-												probeStatusLabelKey(
-													status,
-												) as "translate.provider.probeIdle",
-											)
-										: null;
+									status != null ? t(PROBE_LABEL_KEYS[status]) : null;
 								return (
 									<SelectItem
 										key={s.id}
@@ -511,54 +473,58 @@ export function TranslatePane({
 							? status
 							: "unconfigured";
 						const statusLabel = configured
-							? t(probeStatusLabelKey(status) as "translate.provider.probeIdle")
+							? t(PROBE_LABEL_KEYS[status])
 							: t("translate.providerConfig.notConfigured");
 						const inputPrefix = `translate-provider-${id}`;
 						return (
-							<div key={id} className="rounded-lg border bg-card px-3 py-2.5">
-								<div className="mb-2 flex items-center justify-between gap-2">
-									<div className="flex min-w-0 items-center gap-1.5">
-										<ProviderStatusDot kind={statusKind} label={statusLabel} />
-										<p className="min-w-0 truncate font-medium text-sm">
-											{t(
-												`translate.provider.${id}` as "translate.provider.google",
-											)}
-										</p>
+							<ProviderCard key={id}>
+								<ProviderCardHeader
+									left={
+										<>
+											<ProviderStatusDot
+												kind={statusKind}
+												label={statusLabel}
+											/>
+											<p className="min-w-0 truncate font-medium text-sm">
+												{t(
+													`translate.provider.${id}` as "translate.provider.google",
+												)}
+											</p>
+											<Button
+												type="button"
+												variant="link"
+												size="xs"
+												className="-ml-1.5 h-auto shrink-0 px-1.5 text-primary"
+												onClick={() =>
+													openExternalUrl(COMMERCIAL_MT_DOCS_URLS[id])
+												}
+											>
+												<ExternalLink
+													data-icon="inline-start"
+													className="size-3"
+												/>
+												{t("translate.providerConfig.openDocsLabel")}
+											</Button>
+										</>
+									}
+									right={
 										<Button
 											type="button"
-											variant="link"
+											variant="outline"
 											size="xs"
-											className="-ml-1.5 h-auto shrink-0 px-1.5 text-primary"
-											onClick={() =>
-												openExternalUrl(COMMERCIAL_MT_DOCS_URLS[id])
-											}
+											disabled={!configured || status === "probing"}
+											onClick={() => void confirmCommercialProvider(id)}
 										>
-											<ExternalLink
-												data-icon="inline-start"
-												className="size-3"
-											/>
-											{t("translate.providerConfig.openDocsLabel")}
+											{t("translate.providerConfig.confirm")}
 										</Button>
-									</div>
-									<Button
-										type="button"
-										variant="outline"
-										size="xs"
-										disabled={!configured || status === "probing"}
-										onClick={() => void confirmCommercialProvider(id)}
-									>
-										{t("translate.providerConfig.confirm")}
-									</Button>
-								</div>
+									}
+								/>
 
 								<div className="grid gap-1.5">
-									<div className="flex items-center gap-2">
-										<Label
-											htmlFor={`${inputPrefix}-api-key`}
-											className="w-20 shrink-0 font-normal text-muted-foreground text-xs"
-										>
-											{t("translate.providerConfig.apiKey.label")}
-										</Label>
+									<ProviderFieldRow
+										label={t("translate.providerConfig.apiKey.label")}
+										htmlFor={`${inputPrefix}-api-key`}
+									>
 										<Input
 											id={`${inputPrefix}-api-key`}
 											type="password"
@@ -597,18 +563,15 @@ export function TranslatePane({
 											placeholder={t(
 												"translate.providerConfig.apiKey.placeholder",
 											)}
-											className="h-8 min-w-0 flex-1 font-mono text-xs placeholder:text-muted-foreground/50"
+											className={PROVIDER_INPUT_CLASS}
 											spellCheck={false}
 											autoComplete="off"
 										/>
-									</div>
-									<div className="flex items-center gap-2">
-										<Label
-											htmlFor={`${inputPrefix}-base-url`}
-											className="w-20 shrink-0 font-normal text-muted-foreground text-xs"
-										>
-											{t("translate.providerConfig.baseUrl.label")}
-										</Label>
+									</ProviderFieldRow>
+									<ProviderFieldRow
+										label={t("translate.providerConfig.baseUrl.label")}
+										htmlFor={`${inputPrefix}-base-url`}
+									>
 										<Input
 											id={`${inputPrefix}-base-url`}
 											value={effectiveCfg.baseUrl}
@@ -624,19 +587,16 @@ export function TranslatePane({
 												}
 											}}
 											placeholder={COMMERCIAL_MT_DEFAULT_BASE_URLS[id]}
-											className="h-8 min-w-0 flex-1 font-mono text-xs placeholder:text-muted-foreground/50"
+											className={PROVIDER_INPUT_CLASS}
 											spellCheck={false}
 											autoComplete="off"
 										/>
-									</div>
+									</ProviderFieldRow>
 									{id === "azure" ? (
-										<div className="flex items-center gap-2">
-											<Label
-												htmlFor={`${inputPrefix}-region`}
-												className="w-20 shrink-0 font-normal text-muted-foreground text-xs"
-											>
-												{t("translate.providerConfig.region.label")}
-											</Label>
+										<ProviderFieldRow
+											label={t("translate.providerConfig.region.label")}
+											htmlFor={`${inputPrefix}-region`}
+										>
 											<Input
 												id={`${inputPrefix}-region`}
 												value={effectiveCfg.region}
@@ -648,20 +608,17 @@ export function TranslatePane({
 												placeholder={t(
 													"translate.providerConfig.region.placeholder",
 												)}
-												className="h-8 min-w-0 flex-1 font-mono text-xs placeholder:text-muted-foreground/50"
+												className={PROVIDER_INPUT_CLASS}
 												spellCheck={false}
 												autoComplete="off"
 											/>
-										</div>
+										</ProviderFieldRow>
 									) : null}
 									{id === "openaiCompatible" ? (
-										<div className="flex items-center gap-2">
-											<Label
-												htmlFor={`${inputPrefix}-model`}
-												className="w-20 shrink-0 font-normal text-muted-foreground text-xs"
-											>
-												{t("translate.providerConfig.model.label")}
-											</Label>
+										<ProviderFieldRow
+											label={t("translate.providerConfig.model.label")}
+											htmlFor={`${inputPrefix}-model`}
+										>
 											<Input
 												id={`${inputPrefix}-model`}
 												value={effectiveCfg.model}
@@ -673,14 +630,14 @@ export function TranslatePane({
 												placeholder={t(
 													"translate.providerConfig.model.placeholder",
 												)}
-												className="h-8 min-w-0 flex-1 font-mono text-xs placeholder:text-muted-foreground/50"
+												className={PROVIDER_INPUT_CLASS}
 												spellCheck={false}
 												autoComplete="off"
 											/>
-										</div>
+										</ProviderFieldRow>
 									) : null}
 								</div>
-							</div>
+							</ProviderCard>
 						);
 					})}
 				</div>

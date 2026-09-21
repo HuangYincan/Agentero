@@ -39,6 +39,7 @@ import {
 	wikiTargetForPaper,
 } from "@/lib/pdf/annotation-ref";
 import { listPdfAskThreads } from "@/lib/pdf/ask/io";
+import { closeCurrentWindow } from "@/lib/shell/close-window";
 import {
 	type FeatureViewType,
 	readFeatureWindowView,
@@ -66,18 +67,6 @@ const AgentPanel = lazy(() =>
 		default: m.AgentPanel,
 	})),
 );
-
-function closeCurrentWindow() {
-	if (!isTauri()) return;
-	void (async () => {
-		try {
-			const { getCurrentWindow } = await import("@tauri-apps/api/window");
-			await getCurrentWindow().close();
-		} catch {
-			// ignore
-		}
-	})();
-}
 
 function readFeatureQuery(): {
 	vaultPath: string | null;
