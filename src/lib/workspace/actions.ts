@@ -159,12 +159,12 @@ import {
 } from "./viewer";
 
 /**
- * When the strip would be empty with a Vault open, insert full Library.
- * Active focus is left to dockview (`onDidActivePanelChange` / sync end).
+ * Library is resident: with a Vault open its tab must always exist in the
+ * strip. Active focus is left to dockview (`onDidActivePanelChange` / sync end).
  */
-function withLibraryIfEmpty(next: DocTab[]): DocTab[] {
-	if (next.length > 0 || !getVaultPath()) return next;
-	return ensureFullLibraryTab([]).tabs;
+function withLibraryPresent(next: DocTab[]): DocTab[] {
+	if (!getVaultPath()) return next;
+	return ensureFullLibraryTab(next).tabs;
 }
 
 /**
@@ -447,6 +447,9 @@ function openNotesForPaper(
  * closing NOTES leaves the body open.
  */
 export function closeTab(id: string, opts: { remember?: boolean } = {}): void {
+	// Library is resident — never closable (its close affordance is hidden).
+	const target = getTabs().find((t) => t.id === id);
+	if (target && isLibraryVirtualPath(target.path)) return;
 	// Resolve pair before setState so Strict Mode double-invoke is stable.
 	const idsToClose = readingPairCloseIds(getTabs(), id);
 	const active = getActiveTabId();
@@ -466,7 +469,7 @@ export function closeTab(id: string, opts: { remember?: boolean } = {}): void {
 		}
 		if (!removedList.length) return prev;
 		for (const r of removedList) revokeTabMediaSources(r);
-		return withLibraryIfEmpty(next);
+		return withLibraryPresent(next);
 	});
 	removeTabAnnotations(idsToClose);
 }
@@ -492,7 +495,6 @@ function rememberClosedTabs(idsToClose: readonly string[]): void {
 		closing
 			.filter(
 				(tab) =>
-					!tab.pinned &&
 					!companionIds.has(tab.id) &&
 					!isLibraryVirtualPath(tab.path) &&
 					!isTrashVirtualPath(tab.path),
@@ -522,7 +524,7 @@ export function closePlazaTabs(): void {
 		for (const tab of removed) revokeTabMediaSources(tab);
 		removedIds = removed.map((tab) => tab.id);
 		const tabs = prev.filter((tab) => !removedIds.includes(tab.id));
-		return withLibraryIfEmpty(tabs);
+		return withLibraryPresent(tabs);
 	});
 	if (removedIds.length) removeTabAnnotations(removedIds);
 }
@@ -535,7 +537,7 @@ export function closeTabsUnderPath(path: string): void {
 		if (!removed.length) return prev;
 		for (const t of removed) revokeTabMediaSources(t);
 		removedIds = removed.map((t) => t.id);
-		return withLibraryIfEmpty(tabs);
+		return withLibraryPresent(tabs);
 	});
 	if (removedIds.length) removeTabAnnotations(removedIds);
 }
@@ -770,6 +772,8 @@ export function splitActivePane(): void {
 	const tabs = getTabs();
 	const active = tabs.find((t) => t.id === id);
 	if (!active) return;
+	// Library is the resident singleton — never clone it into a second pane.
+	if (isLibraryVirtualPath(active.path)) return;
 
 	// TeX editor ⌘\ → open/refresh its compiled PDF as the right split.
 	if (isTexPath(active.path)) {
@@ -1022,7 +1026,7 @@ export function openPaper(paperDir: string): void {
 			: null;
 		if (
 			activeTab &&
-			!activeTab.pinned &&
+			!isLibraryVirtualPath(activeTab.path) &&
 			!getTabs().some((t) => t.id === tabIdForPath(abs))
 		) {
 			closeTab(activeTab.id, { remember: false });
@@ -1757,12 +1761,12 @@ export function persistTextFile(
 	return attempt;
 }
 
-/** Ensure the strip shows the full Library when it would otherwise be empty. */
+/** Ensure the resident Library tab exists (no-op when already present). */
 export function ensureLibraryTabPresent(): void {
-	if (getTabs().length > 0) return;
-	const ensured = ensureFullLibraryTab([]);
+	const ensured = ensureFullLibraryTab(getTabs());
+	if (!ensured.inserted) return;
 	setTabs(ensured.tabs);
-	setActiveTabId(ensured.activeId);
+	if (!getActiveTabId()) setActiveTabId(ensured.activeId);
 }
 
 const placeholderLoads = new Set<string>();

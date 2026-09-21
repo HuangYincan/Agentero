@@ -49,8 +49,6 @@ export type DocTab = {
 	navigationIntent?: { id: number; fragment: LinkFragment };
 	/** Transient: compiled-PDF pane is waiting on a running LaTeX compile. */
 	texCompiling?: boolean;
-	/** Whether this tab stays open and cannot be closed until unpinned. */
-	pinned?: boolean;
 	loaded: boolean;
 };
 
@@ -99,8 +97,6 @@ export type PersistedTab = {
 	mode: CenterViewMode;
 	/** Last resolved display title (paper metadata title); shown before hydration. */
 	title?: string;
-	/** Whether this tab was pinned when the layout was saved. */
-	pinned?: boolean;
 };
 
 /**
@@ -121,8 +117,6 @@ export type PanelPersistParams = {
 	mode: CenterViewMode;
 	/** Display title at save time; restore shows it before resources hydrate. */
 	title: string;
-	/** Whether this tab stays open and cannot be closed until unpinned. */
-	pinned?: boolean;
 };
 
 export const NOTES_PLACEHOLDER =

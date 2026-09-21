@@ -258,12 +258,16 @@ export function WorkspaceHost() {
 		hydratePlaceholderTabs(ids);
 	}, [activeTabId, visiblePanelIds, treeLoading]);
 
-	// Default page: empty strip with a Vault open → show full Library.
+	// Library is resident: with a Vault open its tab must exist (fresh open,
+	// restore from a layout saved without it, or after other tabs closed).
+	const hasLibraryTab = useMemo(
+		() => tabs.some((t) => isLibraryVirtualPath(t.path)),
+		[tabs],
+	);
 	useEffect(() => {
-		if (!vaultPath) return;
-		if (tabs.length > 0) return;
+		if (!vaultPath || hasLibraryTab) return;
 		ensureLibraryTabPresent();
-	}, [vaultPath, tabs.length]);
+	}, [vaultPath, hasLibraryTab]);
 
 	// Layout alone is persisted (panels + order + active + path/mode in params).
 	useEffect(() => {

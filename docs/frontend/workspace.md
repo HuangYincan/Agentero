@@ -7,6 +7,7 @@
 | 场景 | 行为 |
 |---|---|
 | 打开文档 | 文件树 / Library / 命令面板 → `openTab` → `workspaceRef.openPanel` |
+| Library 常驻 | 打开 Vault 期间 Library tab 始终在标签条（打开、恢复、清空后由 `ensureLibraryTabPresent` 补齐）：不可关闭——无关闭按钮、中键与右键关闭项禁用、「关闭其他/全部」跳过、⌘W 对其 no-op；仅剩 Library 时 ⌘W 关闭窗口。其它 tab 的固定（pin）能力已移除 |
 | 首篇 paper | PDF/HTML 默认组 + `NOTES.md` 右分屏（阅读默认；通用设置 `autoOpenPaperNotes` 关闭时只开 body，NOTES 仍可 `⌘\` / 右键「打开笔记」手动开） |
 | 再开 paper | body 走自由 dock 放置（当前组 / 默认，可再拖分屏）；NOTES 优先叠进已有笔记列；body↔NOTES **焦点仍同步** |
 | 同步关闭 | 关 paper body 时一并关 NOTES；关 NOTES 保留 body |
@@ -17,7 +18,7 @@
 | Split pane | `⌘\` / `Ctrl+\` 向右新增 pane；当前论文未开 NOTES 时默认打开 NOTES，否则复制当前 pane；横向 pane 重新等宽 |
 | NOTES 开关 | Layout 菜单；优先叠右列 |
 | 打开笔记 | 论文 tab 右键 /文件树论文行右键 → NOTES 进右侧阅读列（已开则聚焦；菜单显示 `⌘\` / `Ctrl+\`） |
-| 关光文档 | 回到全库 Library panel |
+| 关光文档 | 回到常驻的全库 Library panel |
 
 标题栏 Layout 菜单中的窗口布局预设改变当前论文的 Notes 分屏、外层 Agent panel 和左侧 Vault sidebar：Agent 模式为 PDF / Agent `1:1` 并展开左侧栏，笔记模式关闭左右侧栏并显示 PDF / Notes，阅读模式关闭 Notes、Agent 与左侧栏，只保留 PDF 阅读界面。其它 PDF tab 保持打开。
 

@@ -35,7 +35,6 @@ export function panelPersistParams(tab: DocTab): PanelPersistParams {
 		path: tab.path,
 		mode: tab.mode,
 		title: tab.title,
-		...(tab.pinned ? { pinned: true } : {}),
 	};
 }
 
@@ -46,7 +45,6 @@ type LayoutPanelState = {
 		path?: string;
 		mode?: string;
 		title?: string;
-		pinned?: boolean;
 	};
 };
 
@@ -122,13 +120,9 @@ export function extractTabsFromLayout(layout: unknown): {
 			typeof panel.params?.title === "string" && panel.params.title.trim()
 				? panel.params.title
 				: undefined;
-		const pinned =
-			typeof panel.params?.pinned === "boolean"
-				? panel.params.pinned
-				: undefined;
 		if (seen.has(panelId)) continue;
 		seen.add(panelId);
-		tabs.push({ id: panelId, path, mode, title, pinned });
+		tabs.push({ id: panelId, path, mode, title });
 	}
 	const activeId = findActivePanelIdInLayout(l);
 	return {

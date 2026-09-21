@@ -22,7 +22,7 @@ import {
 	type IDockviewPanel,
 	type IDockviewPanelProps,
 } from "dockview-react";
-import { FileCode2, Pin, X } from "lucide-react";
+import { FileCode2, X } from "lucide-react";
 import {
 	type ComponentProps,
 	createContext,
@@ -57,7 +57,6 @@ import { installDockviewDragSelectionGuard } from "@/lib/workspace/dockview-drag
 import { installDockviewDropOverlayCleanup } from "@/lib/workspace/dockview-drop-overlay-cleanup";
 import { installDockviewSashFrameLoop } from "@/lib/workspace/dockview-sash";
 import { agenteroDockTheme } from "@/lib/workspace/dockview-theme";
-import { updateTab } from "@/lib/workspace/store";
 import {
 	isSplitDragPayload,
 	readDraggedVaultPaths,
@@ -197,7 +196,8 @@ function WorkspaceTab({
 	const [title, setTitle] = useState(api.title);
 	const middleClickRef = useRef(false);
 	const tab = tabsById.get(api.id) ?? null;
-	const pinned = Boolean(tab?.pinned);
+	// Library is the resident tab — no close affordance.
+	const isLibrary = Boolean(tab && isLibraryVirtualPath(tab.path));
 	const canToggleHtml =
 		tab?.paperMeta?.type !== "html" &&
 		Boolean(tab?.htmlUrl) &&
@@ -217,21 +217,6 @@ function WorkspaceTab({
 		},
 		[api.id, onToggleHtmlMode],
 	);
-	const togglePinned = useCallback(
-		(event: React.MouseEvent) => {
-			event.preventDefault();
-			event.stopPropagation();
-			updateTab(api.id, { pinned: !pinned });
-		},
-		[api.id, pinned],
-	);
-	const handleCloseClick = useCallback(() => {
-		if (pinned) {
-			updateTab(api.id, { pinned: false });
-			return;
-		}
-		close();
-	}, [api.id, close, pinned]);
 
 	return (
 		<div
@@ -242,7 +227,7 @@ function WorkspaceTab({
 				onPointerDown?.(event);
 			}}
 			onPointerUp={(event) => {
-				if (middleClickRef.current && event.button === 1 && !pinned) {
+				if (middleClickRef.current && event.button === 1 && !isLibrary) {
 					close();
 				}
 				middleClickRef.current = false;
@@ -253,28 +238,6 @@ function WorkspaceTab({
 				onPointerLeave?.(event);
 			}}
 		>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<button
-						type="button"
-						className={cn(
-							"dv-default-tab-action",
-							!pinned && "opacity-0 group-hover:opacity-100",
-						)}
-						aria-label={pinned ? t("tabs.unpin") : t("tabs.pin")}
-						onPointerDown={(event) => {
-							event.preventDefault();
-							event.stopPropagation();
-						}}
-						onClick={togglePinned}
-					>
-						<Pin className={cn("size-3.5", pinned && "fill-current")} />
-					</button>
-				</TooltipTrigger>
-				<TooltipContent side="bottom">
-					{pinned ? t("tabs.unpin") : t("tabs.pin")}
-				</TooltipContent>
-			</Tooltip>
 			<span className="dv-default-tab-content">
 				<MathText text={title ?? ""} />
 			</span>
@@ -301,19 +264,17 @@ function WorkspaceTab({
 					</TooltipContent>
 				</Tooltip>
 			) : null}
-			<button
-				type="button"
-				className="dv-default-tab-action"
-				aria-label={
-					pinned
-						? t("tabs.unpinToClose", { title })
-						: t("tabs.close", { title })
-				}
-				onPointerDown={(event) => event.preventDefault()}
-				onClick={handleCloseClick}
-			>
-				<X className="size-3.5" />
-			</button>
+			{isLibrary ? null : (
+				<button
+					type="button"
+					className="dv-default-tab-action"
+					aria-label={t("tabs.close", { title })}
+					onPointerDown={(event) => event.preventDefault()}
+					onClick={close}
+				>
+					<X className="size-3.5" />
+				</button>
+			)}
 		</div>
 	);
 }
@@ -908,12 +869,21 @@ export const DockWorkspace = memo(
 		 */
 		const getTabContextMenuItems = useCallback(
 			({ panel, group, api }: GetTabContextMenuItemsParams) => {
-				const hasOthers = group.panels.length > 1;
 				const existing = api.getTabGroupForPanel({
 					groupId: group.id,
 					panelId: panel.id,
 				});
 				const tab = tabsRef.current.find((t) => t.id === panel.id) ?? null;
+				const isLibraryPanel = (panelId: string) => {
+					const found =
+						tabsRef.current.find((candidate) => candidate.id === panelId) ??
+						null;
+					return Boolean(found && isLibraryVirtualPath(found.path));
+				};
+				const panelIsLibrary = isLibraryPanel(panel.id);
+				const closableOthers = group.panels.filter(
+					(p) => p !== panel && !isLibraryPanel(p.id),
+				).length;
 				const menu: Array<
 					| "separator"
 					| { label: string; disabled?: boolean; action: () => void }
@@ -970,28 +940,17 @@ export const DockWorkspace = memo(
 				}
 				menu.push(
 					buildTabContextMenuItem({
-						label: tab?.pinned ? t("tabs.unpin") : t("tabs.pin"),
-						action: () => updateTab(panel.id, { pinned: !tab?.pinned }),
-					}),
-					"separator",
-					buildTabContextMenuItem({
-						label: tab?.pinned
-							? t("tabs.contextUnpinAndClose")
-							: t("tabs.contextClose"),
+						label: t("tabs.contextClose"),
 						shortcut: formatShortcutById("closeTab"),
-						action: () => {
-							if (tab?.pinned) {
-								updateTab(panel.id, { pinned: false });
-							}
-							panel.api.close();
-						},
+						disabled: panelIsLibrary,
+						action: () => panel.api.close(),
 					}),
 					{
 						label: t("tabs.contextCloseOthers"),
-						disabled: !hasOthers,
+						disabled: closableOthers === 0,
 						action: () => {
 							for (const p of group.panels) {
-								if (p !== panel) p.api.close();
+								if (p !== panel && !isLibraryPanel(p.id)) p.api.close();
 							}
 						},
 					},
@@ -999,7 +958,7 @@ export const DockWorkspace = memo(
 						label: t("tabs.contextCloseAll"),
 						action: () => {
 							for (const p of [...group.panels]) {
-								p.api.close();
+								if (!isLibraryPanel(p.id)) p.api.close();
 							}
 						},
 					},

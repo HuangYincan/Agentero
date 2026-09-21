@@ -163,14 +163,13 @@ export function createPlaceholderTab(
 		notesKey: 0,
 		excalidrawKey: 0,
 		textKey: 0,
-		pinned: isLibrary,
 		loaded: false,
 	};
 }
 
 /**
  * Ensure the full-library tab exists; returns the next tabs + active id.
- * Used when the tab strip would otherwise be empty (default page).
+ * The Library tab is resident: every mutation path re-inserts it when missing.
  */
 export function ensureFullLibraryTab(prev: DocTab[]): {
 	tabs: DocTab[];
@@ -278,10 +277,6 @@ export function removeTabsUnderPath(
 	const survivors: DocTab[] = [];
 	const removed: DocTab[] = [];
 	for (const t of prev) {
-		if (t.pinned) {
-			survivors.push(t);
-			continue;
-		}
 		if (isLibraryVirtualPath(t.path) || isPlazaVirtualPath(t.path)) {
 			survivors.push(t);
 			continue;

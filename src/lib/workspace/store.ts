@@ -76,14 +76,10 @@ export function initWorkspaceStore(): void {
 			const tab = createPlaceholderTab(pt.path, pt.mode, pt.id);
 			// Real-path placeholders default to the folder basename; prefer the
 			// persisted title so strips show paper names before hydration.
-			let restored = tab;
 			if (pt.title && tab.kind === "file") {
-				restored = { ...restored, title: pt.title };
+				return { ...tab, title: pt.title };
 			}
-			if (pt.pinned != null) {
-				restored = { ...restored, pinned: pt.pinned };
-			}
-			return restored;
+			return tab;
 		}),
 		activeTabId: persisted.activeId ?? null,
 		dockLayout: persisted.layout ?? null,
