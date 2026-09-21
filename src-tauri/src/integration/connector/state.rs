@@ -222,11 +222,7 @@ impl ConnectorController {
 
     pub fn set_parent_dir(&self, parent_dir: String) {
         if let Ok(mut g) = self.inner.lock() {
-            let trimmed = parent_dir
-                .trim()
-                .replace('\\', "/")
-                .trim_matches('/')
-                .to_string();
+            let trimmed = crate::core::fs::normalize_rel_separators(parent_dir.trim());
             if !trimmed.is_empty() {
                 g.parent_dir = trimmed;
             }

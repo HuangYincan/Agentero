@@ -130,8 +130,7 @@ fn prune(conn: &Connection) -> Result<(), AppError> {
 /// `papers/<id>/…` → `papers/<id>`; anything else stays `None`.
 // Used by event writes and paper-level rollups.
 pub fn paper_path_of(path: &str) -> Option<String> {
-    let path = path.trim().replace('\\', "/");
-    let path = path.trim_matches('/');
+    let path = crate::fs::normalize_rel_separators(path.trim());
     let rest = path.strip_prefix("papers/")?;
     let id = rest.split('/').next().filter(|s| !s.is_empty())?;
     Some(format!("papers/{id}"))

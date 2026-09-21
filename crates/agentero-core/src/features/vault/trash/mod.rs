@@ -64,10 +64,6 @@ pub struct TrashEntry {
     pub is_dir: bool,
 }
 
-fn norm_rel(rel: &str) -> String {
-    rel.replace('\\', "/").trim_matches('/').to_string()
-}
-
 fn is_under_papers(rel: &str) -> bool {
     rel == "papers" || rel.starts_with("papers/")
 }
@@ -113,7 +109,7 @@ pub fn trash_paths(vault_root: &Path, rels: &[String]) -> Result<TrashResult, Ap
 
     let mut items: Vec<TrashItem> = Vec::new();
     for (i, raw) in rels.iter().enumerate() {
-        let rel = norm_rel(raw);
+        let rel = crate::fs::normalize_rel_separators(raw);
         if rel.is_empty() || rel == "papers" || rel.contains("..") {
             continue;
         }

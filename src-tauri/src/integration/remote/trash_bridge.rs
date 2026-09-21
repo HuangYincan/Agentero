@@ -6,7 +6,7 @@
 
 use super::session::{RemoteRegistry, RemoteSession};
 use crate::core::error::AppError;
-use crate::core::fs::{VaultFs, WriteOpts};
+use crate::core::fs::{normalize_rel_separators, VaultFs, WriteOpts};
 use crate::features::paper::catalog::papers::{self, PaperRecord};
 use crate::features::vault::trash::remote_ops::RemoteTrashOps;
 use crate::features::vault::trash::{TrashEntry, TrashResult};
@@ -30,10 +30,6 @@ struct TrashManifest {
     batch_id: String,
     created_at: String,
     items: Vec<TrashItem>,
-}
-
-fn norm_rel(rel: &str) -> String {
-    rel.replace('\\', "/").trim_matches('/').to_string()
 }
 
 fn is_under_papers(rel: &str) -> bool {
@@ -67,7 +63,7 @@ pub async fn trash_paths(
 
     let mut items: Vec<TrashItem> = Vec::new();
     for (i, raw) in rels.iter().enumerate() {
-        let rel = norm_rel(raw);
+        let rel = normalize_rel_separators(raw);
         if rel.is_empty() || rel == "papers" || rel.contains("..") {
             continue;
         }

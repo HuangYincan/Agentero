@@ -446,15 +446,14 @@ impl WikiRenameTransaction {
 }
 
 pub fn normalize_vault_path(path: &str) -> Result<String, WikiRenameError> {
-    let path = path.trim().replace('\\', "/");
-    let path = path.trim_matches('/');
+    let path = crate::fs::normalize_rel_separators(path.trim());
     if path.is_empty() {
         return Err(WikiRenameError::new(
             WikiRenameErrorCode::InvalidPath,
             "path is required",
         ));
     }
-    let parsed = Path::new(path);
+    let parsed = Path::new(&path);
     if parsed.components().any(|component| {
         matches!(
             component,

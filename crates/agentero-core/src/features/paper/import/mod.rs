@@ -1301,7 +1301,7 @@ async fn abstract_for_notes(text: &str) -> Option<String> {
 }
 
 pub fn normalize_parent_dir(raw: &str) -> Result<String, AppError> {
-    let s = raw.trim().replace('\\', "/").trim_matches('/').to_string();
+    let s = crate::fs::normalize_rel_separators(raw.trim());
     if s.is_empty() {
         return Ok("papers".into());
     }

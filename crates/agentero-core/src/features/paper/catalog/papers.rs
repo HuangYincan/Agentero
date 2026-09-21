@@ -397,7 +397,7 @@ pub fn upsert_paper(vault_root: &Path, record: &PaperRecord) -> Result<PaperReco
 }
 
 pub fn get_by_path(vault_root: &Path, path: &str) -> Result<Option<PaperRecord>, AppError> {
-    let path = path.replace('\\', "/").trim_matches('/').to_string();
+    let path = crate::fs::normalize_rel_separators(path);
     with_catalog(vault_root, |conn| get_conn(conn, &path))
 }
 
@@ -863,7 +863,7 @@ pub fn rebuild_from_disk(vault_root: &Path) -> Result<usize, AppError> {
                     .strip_prefix(vault_root)
                     .ok()
                     .and_then(|p| p.to_str())
-                    .map(|s| s.replace('\\', "/").trim_matches('/').to_string());
+                    .map(crate::fs::normalize_rel_separators);
                 if let Some(rel_path) = rel.filter(|r| !r.is_empty()) {
                     let existing = get_conn(conn, &rel_path).ok().flatten();
                     let sidecar = super::sidecar::read_sidecar(vault_root, &rel_path);
@@ -911,7 +911,7 @@ pub fn ensure_row_for_path(
     vault_root: &Path,
     rel_path: &str,
 ) -> Result<Option<PaperRecord>, AppError> {
-    let rel_path = rel_path.replace('\\', "/").trim_matches('/').to_string();
+    let rel_path = crate::fs::normalize_rel_separators(rel_path);
     with_catalog(vault_root, |conn| {
         if let Some(row) = get_conn(conn, &rel_path)? {
             return Ok(Some(row));
@@ -1045,7 +1045,7 @@ pub fn update_meta(
     path: &str,
     patch: &PaperMetaPatch,
 ) -> Result<PaperRecord, AppError> {
-    let path = path.replace('\\', "/").trim_matches('/').to_string();
+    let path = crate::fs::normalize_rel_separators(path);
     let Some(mut row) = get_by_path(vault_root, &path)? else {
         return Err(AppError::message("paper not found in catalog"));
     };
@@ -1143,7 +1143,7 @@ pub fn update_meta(
 
 /// Set `is_read` for a paper path; returns the updated row.
 pub fn set_is_read(vault_root: &Path, path: &str, is_read: bool) -> Result<PaperRecord, AppError> {
-    let path = path.replace('\\', "/").trim_matches('/').to_string();
+    let path = crate::fs::normalize_rel_separators(path);
     let Some(mut row) = get_by_path(vault_root, &path)? else {
         return Err(AppError::message("paper not found in catalog"));
     };
@@ -1156,7 +1156,7 @@ pub fn set_is_read(vault_root: &Path, path: &str, is_read: bool) -> Result<Paper
 /// Tags are trimmed, empty strings dropped, and de-duplicated case-insensitively
 /// (first occurrence keeps its original casing).
 pub fn set_tags(vault_root: &Path, path: &str, tags: &[PaperTag]) -> Result<PaperRecord, AppError> {
-    let path = path.replace('\\', "/").trim_matches('/').to_string();
+    let path = crate::fs::normalize_rel_separators(path);
     let Some(mut row) = get_by_path(vault_root, &path)? else {
         return Err(AppError::message("paper not found in catalog"));
     };
@@ -1167,7 +1167,7 @@ pub fn set_tags(vault_root: &Path, path: &str, tags: &[PaperTag]) -> Result<Pape
 
 /// Append tags to a paper (trim + case-insensitive dedupe). Returns the updated row.
 pub fn add_tags(vault_root: &Path, path: &str, tags: &[PaperTag]) -> Result<PaperRecord, AppError> {
-    let path = path.replace('\\', "/").trim_matches('/').to_string();
+    let path = crate::fs::normalize_rel_separators(path);
     let Some(mut row) = get_by_path(vault_root, &path)? else {
         return Err(AppError::message("paper not found in catalog"));
     };
@@ -1184,7 +1184,7 @@ pub fn remove_tags(
     path: &str,
     tags: &[String],
 ) -> Result<PaperRecord, AppError> {
-    let path = path.replace('\\', "/").trim_matches('/').to_string();
+    let path = crate::fs::normalize_rel_separators(path);
     let Some(mut row) = get_by_path(vault_root, &path)? else {
         return Err(AppError::message("paper not found in catalog"));
     };
@@ -1273,7 +1273,7 @@ pub fn normalize_tags(tags: &[PaperTag]) -> Vec<PaperTag> {
 /// Snapshot the paper row at `path` and any papers nested under `path/`.
 /// Used by the recycle bin so a delete can be undone (see `services::trash`).
 pub fn list_under_path(vault_root: &Path, path: &str) -> Result<Vec<PaperRecord>, AppError> {
-    let path = path.replace('\\', "/").trim_matches('/').to_string();
+    let path = crate::fs::normalize_rel_separators(path);
     if path.is_empty() {
         return Ok(Vec::new());
     }
@@ -1301,7 +1301,7 @@ pub fn list_under_path(vault_root: &Path, path: &str) -> Result<Vec<PaperRecord>
 /// Delete a paper row and any papers nested under `path/` (org folder delete).
 /// Returns the number of catalog rows removed.
 pub fn delete_under_path(vault_root: &Path, path: &str) -> Result<usize, AppError> {
-    let path = path.replace('\\', "/").trim_matches('/').to_string();
+    let path = crate::fs::normalize_rel_separators(path);
     if path.is_empty() {
         return Err(AppError::message("path is required"));
     }
@@ -1325,8 +1325,8 @@ pub fn delete_under_path(vault_root: &Path, path: &str) -> Result<usize, AppErro
 /// Move a paper folder (and any papers nested under it) in the catalog by
 /// rewriting the `from` path prefix to `to`. Returns the number of rows updated.
 pub fn move_under_path(vault_root: &Path, from: &str, to: &str) -> Result<usize, AppError> {
-    let from = from.replace('\\', "/").trim_matches('/').to_string();
-    let to = to.replace('\\', "/").trim_matches('/').to_string();
+    let from = crate::fs::normalize_rel_separators(from);
+    let to = crate::fs::normalize_rel_separators(to);
     if from.is_empty() || to.is_empty() {
         return Err(AppError::message("from and to are required"));
     }
@@ -1424,7 +1424,7 @@ pub fn set_page_counts(vault_root: &Path, counts: &[(String, i64)]) -> Result<()
 /// an empty one upserts a row whose sidecar would land on the vault root.
 fn upsert_conn(conn: &Connection, r: &PaperRecord) -> Result<PaperRecord, AppError> {
     let mut r = r.clone();
-    r.path = r.path.replace('\\', "/").trim_matches('/').to_string();
+    r.path = crate::fs::normalize_rel_separators(&r.path);
     if r.path.is_empty() {
         return Err(AppError::message(format!(
             "paper record missing vault-relative path (id `{}`)",

@@ -95,12 +95,7 @@ pub fn mcp_set_parent_dir(
     ctrl: State<'_, Arc<McpController>>,
     args: McpSetParentDirArgs,
 ) -> ApiResult<()> {
-    let dir = args
-        .parent_dir
-        .trim()
-        .replace('\\', "/")
-        .trim_matches('/')
-        .to_string();
+    let dir = crate::core::fs::normalize_rel_separators(args.parent_dir.trim());
     if !dir.is_empty() {
         ctrl.set_parent_dir(dir);
     }
